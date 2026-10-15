@@ -1,0 +1,3 @@
+rootProject.name = 'MSTOCK'
+include 'eureka-server'
+include 'config-server'
