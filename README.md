@@ -9,8 +9,9 @@ construido con arquitectura de microservicios.
 ## Módulos
 | Módulo | Puerto | Descripción |
 |---|---|---|
-| config-server | 8888 | Configuración centralizada |
-| eureka-server | 8761 | Registro y descubrimiento de servicios |
+| config-server | 9888 | Configuración centralizada |
+| eureka-server | 9761 | Registro y descubrimiento de servicios |
+| auth-service | 9001 | Usuarios, login y JWT |
 
 ## Cómo ejecutar
     .\gradlew.bat :eureka-server:bootRun

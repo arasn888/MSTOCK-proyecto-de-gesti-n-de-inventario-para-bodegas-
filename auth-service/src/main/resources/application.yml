@@ -1,11 +1,11 @@
 server:
-  port: 8081
+  port: 9001
 
 spring:
   application:
     name: auth-service
   config:
-    import: optional:configserver:http://localhost:8888
+    import: optional:configserver:http://localhost:9888
   datasource:
     url: jdbc:mysql://localhost:3307/mstock_auth?useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USER:mstock_user}
@@ -16,3 +16,8 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+
+mstock:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiracion-minutos: 60
