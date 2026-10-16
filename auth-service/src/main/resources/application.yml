@@ -4,3 +4,15 @@ server:
 spring:
   application:
     name: auth-service
+  config:
+    import: optional:configserver:http://localhost:8888
+  datasource:
+    url: jdbc:mysql://localhost:3307/mstock_auth?useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USER:mstock_user}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  flyway:
+    enabled: true
