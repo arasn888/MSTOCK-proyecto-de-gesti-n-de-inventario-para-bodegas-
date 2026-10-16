@@ -27,3 +27,10 @@ construido con arquitectura de microservicios.
 MySQL queda disponible en `localhost:3307`, con una base de datos por
 servicio: `mstock_auth`, `mstock_catalogo`, `mstock_inventario`,
 `mstock_ventas` y `mstock_compras`.
+
+| auth-service | 9001 | Usuarios, login (BCrypt + JWT) y CRUD de usuarios |
+## Pruebas
+
+- Pruebas de la capa de datos: `.\gradlew.bat :auth-service:test`
+- Pruebas de la API: importar `docs/postman/MSTOCK.postman_collection.json`
+  en Postman y ejecutarla con el Collection Runner.
