@@ -1,3 +1,4 @@
 rootProject.name = 'MSTOCK'
 include 'eureka-server'
 include 'config-server'
+include 'auth-service'
