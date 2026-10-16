@@ -15,3 +15,14 @@ construido con arquitectura de microservicios.
 ## Cómo ejecutar
     .\gradlew.bat :eureka-server:bootRun
     .\gradlew.bat :config-server:bootRun
+
+## Base de datos (MySQL con Docker)
+
+1. Copiar `.env.example` como `.env` y completar las contraseñas.
+2. Levantar MySQL:
+
+        docker compose up -d
+
+MySQL queda disponible en `localhost:3307`, con una base de datos por
+servicio: `mstock_auth`, `mstock_catalogo`, `mstock_inventario`,
+`mstock_ventas` y `mstock_compras`.
