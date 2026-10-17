@@ -2057,14 +2057,14 @@
           }
         },
         {
-          "name": "S04 El cajero puede llamar a reversiones (compromiso conocido) -> 201",
+          "name": "S04 [Error] El cajero NO puede llamar a reversiones -> 403",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));"
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
                 ]
               }
             }
@@ -2107,7 +2107,7 @@
                 }
               }
             },
-            "description": "Compromiso conocido: hasta tener cuenta de servicio, el cajero puede llamar a salidas y reversiones. Anotado para el informe. Esto devuelve 1 unidad al producto 2."
+            "description": "Las reversiones solo las acepta la cuenta de servicio (rol SERVICIO, la usa ventas al compensar) o un ADMIN. Un cajero no puede devolver stock sin una venta."
           }
         }
       ]

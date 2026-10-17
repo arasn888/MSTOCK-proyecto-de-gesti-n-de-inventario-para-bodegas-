@@ -10,10 +10,10 @@ if (-not (Test-Path ".\.env")) {
         }
     }
     $env:DB_PASSWORD = $env:MYSQL_PASSWORD
-    $faltan = @("DB_PASSWORD", "JWT_SECRET") | Where-Object { -not [Environment]::GetEnvironmentVariable($_) }
+    $faltan = @("DB_PASSWORD", "JWT_SECRET", "RABBITMQ_PASSWORD") | Where-Object { -not [Environment]::GetEnvironmentVariable($_) }
     if ($faltan) {
         Write-Host ("Faltan variables en .env: " + ($faltan -join ", ")) -ForegroundColor Yellow
     } else {
-        Write-Host "Variables cargadas: DB_PASSWORD y JWT_SECRET" -ForegroundColor Green
+        Write-Host "Variables cargadas: DB_PASSWORD, JWT_SECRET y RABBITMQ_PASSWORD" -ForegroundColor Green
     }
 }

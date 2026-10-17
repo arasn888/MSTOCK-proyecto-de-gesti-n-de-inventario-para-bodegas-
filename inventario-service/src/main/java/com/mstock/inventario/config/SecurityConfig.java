@@ -59,8 +59,12 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/inventario/salidas",
-                                "/api/inventario/salidas/lote", "/api/inventario/reversiones")
+                                "/api/inventario/salidas/lote")
                                 .hasAnyRole("ADMIN", "ALMACENERO", "CAJERO")
+                        // Devolver stock sin una venta detrás sería inflar el inventario: solo la cuenta
+                        // de servicio de ventas-service (compensación) o un administrador.
+                        .requestMatchers(HttpMethod.POST, "/api/inventario/reversiones")
+                                .hasAnyRole("ADMIN", "SERVICIO")
                         .requestMatchers("/api/**").hasAnyRole("ADMIN", "ALMACENERO")
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e

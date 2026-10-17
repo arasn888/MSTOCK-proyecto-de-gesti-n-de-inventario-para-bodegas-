@@ -5,6 +5,7 @@ import com.mstock.ventas.dto.VentaResponse;
 import com.mstock.ventas.entity.Venta;
 import com.mstock.ventas.repository.ClienteRepository;
 import com.mstock.ventas.repository.VentaRepository;
+import com.mstock.ventas.messaging.EventosPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,8 @@ class VentaRegistroTest {
     private VentaRepository ventaRepository;
     @Mock
     private ClienteRepository clienteRepository;
+    @Mock
+    private EventosPublisher eventos;
     @InjectMocks
     private VentaRegistro registro;
 

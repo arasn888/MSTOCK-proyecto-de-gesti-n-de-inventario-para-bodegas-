@@ -14,10 +14,13 @@ Java 21, Spring Boot 4.1.1, Spring Cloud 2025.1.2, Gradle, MySQL 8.4 (Docker), F
 | auth-service | 9001 | mstock_auth | Usuarios, login (BCrypt + JWT) y roles |
 | catalogo-service | 9002 | mstock_catalogo | Productos, categorías y proveedores |
 | inventario-service | 9003 | mstock_inventario | Stock, kardex y alertas; valida productos con el catálogo (Feign) |
-| ventas-service | 9004 | mstock_ventas | Ventas y clientes; precio del catálogo y descuento de stock del inventario |
+| ventas-service | 9004 | mstock_ventas | Ventas y clientes; precio del catálogo y descuento de stock del inventario; publica `venta.registrada` |
+| notificaciones-service | 9006 | mstock_notificaciones | Consume eventos de RabbitMQ (`stock.bajo`, `venta.registrada`) y los guarda como notificaciones |
 | api-gateway | 8080 | - | Entrada única: valida el JWT y enruta a los servicios (Eureka); circuit breaker por ruta |
 
 Roles: `ADMIN`, `ALMACENERO`, `CAJERO`. Todos los servicios validan el mismo JWT.
+Entre servicios, ventas usa un token de corta duración con rol interno `SERVICIO` para devolver stock al compensar una venta (`POST /api/inventario/reversiones` solo lo aceptan `SERVICIO` y `ADMIN`).
+RabbitMQ (docker compose, puerto 5673, panel 15673): inventario publica `stock.bajo` y ventas `venta.registrada`; ver `docs/eventos-rabbitmq.md`. Si RabbitMQ está caído, la operación igual se completa y el evento se pierde (queda un aviso en el log).
 
 ## Preparación
 1. Copiar `.env.example` como `.env` y completar las claves (`.env` no se sube a Git).
@@ -48,7 +51,7 @@ breaker, porque descontar stock no debe repetirse. Si un servicio está caído, 
 ## API Gateway (puerto 8080)
 Toda petición del frontend entra por `http://localhost:8080`; los puertos de cada servicio quedan solo para desarrollo.
 - Rutas: `/api/auth` y `/api/usuarios` -> auth; `/api/productos`, `/api/categorias` y `/api/proveedores` -> catálogo;
-  `/api/inventario` -> inventario; `/api/ventas` y `/api/clientes` -> ventas. Se resuelven por Eureka (`lb://`).
+  `/api/inventario` -> inventario; `/api/ventas` y `/api/clientes` -> ventas; `/api/notificaciones` -> notificaciones. Se resuelven por Eureka (`lb://`).
 - Seguridad: solo `POST /api/auth/login` y `/actuator/health` son públicos. El gateway rechaza con 401 lo que no traiga
   un JWT válido (misma clave y emisor que auth). Los permisos por rol (403) los siguen decidiendo los servicios,
   que también validan el token: saltarse el gateway no da acceso.
@@ -63,5 +66,5 @@ Pruebas de la API: importar en Postman las colecciones de `docs/postman/` y ejec
 La carpeta de resiliencia de cada colección es manual (requiere apagar un servicio).
 
 ## Pendiente
-RabbitMQ y notificaciones, compras-service, anulación de ventas, Angular, Docker/Kubernetes
-y observabilidad. Mejora anotada: cuenta de servicio para las llamadas entre microservicios.
+compras-service, anulación de ventas, Angular, Docker/Kubernetes
+y observabilidad. Mejora anotada: usar la cuenta de servicio también en el descuento de stock (hoy va con el token del cajero) y un patrón outbox para no perder eventos.

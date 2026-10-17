@@ -4,6 +4,7 @@ import com.mstock.ventas.client.CatalogoGateway;
 import com.mstock.ventas.client.InventarioGateway;
 import com.mstock.ventas.client.ItemLote;
 import com.mstock.ventas.client.ProductoCatalogo;
+import com.mstock.ventas.config.TokenServicio;
 import com.mstock.ventas.dto.ItemVentaRequest;
 import com.mstock.ventas.dto.VentaRequest;
 import com.mstock.ventas.exception.RecursoNoEncontradoException;
@@ -48,6 +49,8 @@ class VentaServiceTest {
     private VentaRegistro registro;
     @Mock
     private VentaRepository ventaRepository;
+    @Mock
+    private TokenServicio tokenServicio;
     @InjectMocks
     private VentaService service;
 
@@ -137,10 +140,12 @@ class VentaServiceTest {
     void falloAlGuardarRevierteElStock() {
         when(catalogo.consultarProducto(1L, TOKEN)).thenReturn(producto(1, "3.50", true));
         when(registro.guardar(any(), any(), anyList())).thenThrow(new IllegalStateException("BD caída"));
+        when(tokenServicio.generar()).thenReturn("token-servicio");
 
         assertThatThrownBy(() -> service.registrar(venta(null, new ItemVentaRequest(1L, 2)), "cajero", TOKEN))
                 .isInstanceOf(IllegalStateException.class).hasMessage("BD caída");
-        verify(inventario).revertir(List.of(new ItemLote(1L, 2)), TOKEN);
+        // La reversión va con el token de la cuenta de servicio, no con el del cajero.
+        verify(inventario).revertir(List.of(new ItemLote(1L, 2)), "token-servicio");
     }
 
     @Test

@@ -13,6 +13,7 @@ import com.mstock.inventario.entity.TipoMovimiento;
 import com.mstock.inventario.exception.RecursoNoEncontradoException;
 import com.mstock.inventario.exception.ReglaNegocioException;
 import com.mstock.inventario.exception.StockInsuficienteException;
+import com.mstock.inventario.messaging.EventosPublisher;
 import com.mstock.inventario.repository.MovimientoRepository;
 import com.mstock.inventario.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class InventarioService {
 
     private final StockRepository stockRepository;
     private final MovimientoRepository movimientoRepository;
+    private final EventosPublisher eventos;
 
     @Transactional(readOnly = true)
     public List<StockResponse> listar() {
@@ -178,6 +180,11 @@ public class InventarioService {
                 .motivo(motivo == null || motivo.isBlank() ? null : motivo.trim())
                 .usuario(usuario)
                 .build());
+
+        // Aviso de stock bajo: solo cuando el movimiento lo deja en o bajo el mínimo (una entrada no).
+        if (tipo != TipoMovimiento.ENTRADA && nuevoStock <= stock.getStockMinimo()) {
+            eventos.stockBajo(stock.getProductoId(), nuevoStock, stock.getStockMinimo());
+        }
         return MovimientoResponse.desde(movimiento);
     }
 }

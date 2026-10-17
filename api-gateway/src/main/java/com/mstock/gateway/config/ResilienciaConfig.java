@@ -12,7 +12,7 @@ import java.time.Duration;
 
 /**
  * Configuración común de los circuit breakers de las rutas (uno por servicio: auth, catalogo,
- * inventario, ventas). Solo cuentan como fallo las caídas del servicio (sin instancia en Eureka,
+ * inventario, ventas, notificaciones). Solo cuentan como fallo las caídas del servicio (sin instancia en Eureka,
  * conexión rechazada o tiempo agotado). Un 4xx o un 503 que el propio servicio devuelve con su
  * mensaje (por ejemplo ventas avisando que el inventario está caído) pasa tal cual.
  *

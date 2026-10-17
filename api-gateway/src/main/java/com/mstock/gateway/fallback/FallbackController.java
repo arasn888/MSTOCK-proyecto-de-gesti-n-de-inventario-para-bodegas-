@@ -20,7 +20,8 @@ public class FallbackController {
             "auth", "autenticación (auth-service)",
             "catalogo", "catálogo (catalogo-service)",
             "inventario", "inventario (inventario-service)",
-            "ventas", "ventas (ventas-service)");
+            "ventas", "ventas (ventas-service)",
+            "notificaciones", "notificaciones (notificaciones-service)");
 
     @RequestMapping("/fallback/{servicio}")
     public ResponseEntity<ErrorResponse> respaldo(@PathVariable String servicio) {

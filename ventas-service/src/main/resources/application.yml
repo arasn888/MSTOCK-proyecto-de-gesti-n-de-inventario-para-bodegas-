@@ -16,6 +16,13 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  rabbitmq:
+    host: localhost
+    port: 5673
+    username: ${RABBITMQ_USER:mstock}
+    password: ${RABBITMQ_PASSWORD:}
+    # Si RabbitMQ está caído, publicar un evento no debe dejar colgada la operación del usuario.
+    connection-timeout: 2s
   cloud:
     openfeign:
       client:

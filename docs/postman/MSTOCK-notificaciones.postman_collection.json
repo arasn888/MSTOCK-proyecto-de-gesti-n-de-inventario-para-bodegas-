@@ -1,0 +1,1113 @@
+{
+  "info": {
+    "name": "MSTOCK Notificaciones",
+    "description": "Pruebas del notificaciones-service (puerto 9006) y de los eventos de RabbitMQ. Requiere RabbitMQ (Docker), auth-service (9001) y notificaciones-service (9006). Antes de ejecutar: escribir rabbitUser y rabbitPassword en las variables de la coleccion (Current value). Ejecutar COMPLETA y en orden.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{tokenAdmin}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "notificacionesUrl",
+      "value": "http://localhost:9006"
+    },
+    {
+      "key": "authUrl",
+      "value": "http://localhost:9001"
+    },
+    {
+      "key": "rabbitUrl",
+      "value": "http://localhost:15673"
+    },
+    {
+      "key": "rabbitUser",
+      "value": ""
+    },
+    {
+      "key": "rabbitPassword",
+      "value": ""
+    },
+    {
+      "key": "tokenAdmin",
+      "value": ""
+    },
+    {
+      "key": "tokenCajero",
+      "value": ""
+    },
+    {
+      "key": "productoId",
+      "value": ""
+    },
+    {
+      "key": "ventaId",
+      "value": ""
+    },
+    {
+      "key": "notificacionId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0 Autenticacion",
+      "item": [
+        {
+          "name": "A01 Login admin (auth-service)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Admin123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenAdmin\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A02 Crear cajero de prueba",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/usuarios",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cajero_cat\",\n  \"password\": \"Cajero123*\",\n  \"nombres\": \"Cajero\",\n  \"apellidos\": \"Catalogo\",\n  \"email\": \"cajero_cat@mstock.com\",\n  \"rol\": \"CAJERO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Creado (201) o ya existente (409)\", () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A03 Login cajero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cajero_cat\",\n  \"password\": \"Cajero123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenCajero\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 Publicar eventos en RabbitMQ",
+      "item": [
+        {
+          "name": "E01 Publicar evento stock.bajo (API de RabbitMQ)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{rabbitUrl}}/api/exchanges/%2F/mstock.eventos/publish",
+              "host": [
+                "{{rabbitUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchanges",
+                "%2F",
+                "mstock.eventos",
+                "publish"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"properties\": {\n    \"content_type\": \"application/json\"\n  },\n  \"routing_key\": \"stock.bajo\",\n  \"payload\": \"{\\\"productoId\\\": {{productoId}}, \\\"productoNombre\\\": \\\"Gaseosa Test {{productoId}}\\\", \\\"cantidad\\\": 3, \\\"stockMinimo\\\": 5}\",\n  \"payload_encoding\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{rabbitUser}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{rabbitPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const n = 2000000 + Number(String(Date.now()).slice(-7));",
+                  "pm.collectionVariables.set(\"productoId\", String(n));",
+                  "pm.collectionVariables.set(\"ventaId\", String(n + 1));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"RabbitMQ enruto el mensaje a una cola\", () => pm.expect(pm.response.json().routed).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "E02 Publicar evento venta.registrada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{rabbitUrl}}/api/exchanges/%2F/mstock.eventos/publish",
+              "host": [
+                "{{rabbitUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchanges",
+                "%2F",
+                "mstock.eventos",
+                "publish"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"properties\": {\n    \"content_type\": \"application/json\"\n  },\n  \"routing_key\": \"venta.registrada\",\n  \"payload\": \"{\\\"ventaId\\\": {{ventaId}}, \\\"usuario\\\": \\\"cajero_cat\\\", \\\"total\\\": 25.5, \\\"cantidadItems\\\": 3}\",\n  \"payload_encoding\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{rabbitUser}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{rabbitPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"RabbitMQ enruto el mensaje a una cola\", () => pm.expect(pm.response.json().routed).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "E03 Publicar otro stock.bajo del MISMO producto (no debe duplicar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{rabbitUrl}}/api/exchanges/%2F/mstock.eventos/publish",
+              "host": [
+                "{{rabbitUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchanges",
+                "%2F",
+                "mstock.eventos",
+                "publish"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"properties\": {\n    \"content_type\": \"application/json\"\n  },\n  \"routing_key\": \"stock.bajo\",\n  \"payload\": \"{\\\"productoId\\\": {{productoId}}, \\\"productoNombre\\\": \\\"Gaseosa Test {{productoId}}\\\", \\\"cantidad\\\": 2, \\\"stockMinimo\\\": 5}\",\n  \"payload_encoding\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{rabbitUser}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{rabbitPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"RabbitMQ enruto el mensaje a una cola\", () => pm.expect(pm.response.json().routed).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Consultar y gestionar notificaciones",
+      "item": [
+        {
+          "name": "N01 Listar no leidas: llegaron las dos alertas, sin duplicar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones?soloNoLeidas=true",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones"
+              ],
+              "query": [
+                {
+                  "key": "soloNoLeidas",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(function () {}, 2500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const lista = pm.response.json();",
+                  "const pid = Number(pm.collectionVariables.get(\"productoId\"));",
+                  "const vid = Number(pm.collectionVariables.get(\"ventaId\"));",
+                  "const alertas = lista.filter(n => n.tipo === \"STOCK_BAJO\" && n.referenciaId === pid);",
+                  "const ventas = lista.filter(n => n.tipo === \"VENTA_REGISTRADA\" && n.referenciaId === vid);",
+                  "pm.test(\"Una sola alerta de stock bajo (el segundo evento no duplica)\", () => pm.expect(alertas.length).to.eql(1));",
+                  "pm.test(\"Una notificacion de venta\", () => pm.expect(ventas.length).to.eql(1));",
+                  "pm.test(\"Mensaje de stock bajo con las cantidades del primer evento\", () => pm.expect(alertas[0].mensaje).to.include(\"3 unidad(es)\"));",
+                  "pm.test(\"Mensaje de venta con el total a dos decimales\", () => pm.expect(ventas[0].mensaje).to.include(\"S/ 25.50\"));",
+                  "pm.test(\"Nacen sin leer\", () => pm.expect(alertas[0].leida).to.eql(false));",
+                  "if (alertas.length) { pm.collectionVariables.set(\"notificacionId\", alertas[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N02 Resumen de no leidas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones/resumen",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones",
+                "resumen"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Hay al menos 2 sin leer\", () => pm.expect(pm.response.json().noLeidas).to.be.at.least(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N03 Listar todas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Incluye la alerta\", () => pm.expect(pm.response.json().map(n => n.id)).to.include(Number(pm.collectionVariables.get(\"notificacionId\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N04 Marcar una como leida (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones/{{notificacionId}}/leida",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones",
+                "{{notificacionId}}",
+                "leida"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda leida\", () => pm.expect(pm.response.json().leida).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N05 La leida ya no aparece entre las no leidas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones?soloNoLeidas=true",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones"
+              ],
+              "query": [
+                {
+                  "key": "soloNoLeidas",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"No incluye la leida\", () => pm.expect(pm.response.json().map(n => n.id)).to.not.include(Number(pm.collectionVariables.get(\"notificacionId\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N06 Marcar todas como leidas (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones/leer-todas",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones",
+                "leer-todas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Actualizo al menos una\", () => pm.expect(pm.response.json().actualizadas).to.be.at.least(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N07 Resumen: no queda ninguna sin leer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones/resumen",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones",
+                "resumen"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Cero sin leer\", () => pm.expect(pm.response.json().noLeidas).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N08 Eliminar la notificacion (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones/{{notificacionId}}",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones",
+                "{{notificacionId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Eliminada (204)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N09 [Error] Eliminarla otra vez -> 404",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones/{{notificacionId}}",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones",
+                "{{notificacionId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Ya no existe (404)\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N10 [Error] Marcar leida una inexistente -> 404",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones/999999999/leida",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones",
+                "999999999",
+                "leida"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"No existe (404)\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N11 [Error] Id con letras -> 400",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones/abc/leida",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones",
+                "abc",
+                "leida"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N12 [Error] Parametro soloNoLeidas invalido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones?soloNoLeidas=quizas",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones"
+              ],
+              "query": [
+                {
+                  "key": "soloNoLeidas",
+                  "value": "quizas"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 Seguridad por rol y token",
+      "item": [
+        {
+          "name": "S01 [Error] Sin token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S02 Cajero puede consultar (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S03 [Error] Cajero no puede marcar todas como leidas -> 403",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones/leer-todas",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones",
+                "leer-todas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S04 [Error] Cajero no puede eliminar -> 403",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/api/notificaciones/1",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones",
+                "1"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S05 Estado del servicio es publico (actuator/health)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificacionesUrl}}/actuator/health",
+              "host": [
+                "{{notificacionesUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Estado UP\", () => pm.expect(pm.response.json().status).to.eql(\"UP\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 Mensajes invalidos y cola de mensajes muertos",
+      "item": [
+        {
+          "name": "D01 Publicar un mensaje con JSON invalido en stock.bajo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{rabbitUrl}}/api/exchanges/%2F/mstock.eventos/publish",
+              "host": [
+                "{{rabbitUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchanges",
+                "%2F",
+                "mstock.eventos",
+                "publish"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"properties\": {\n    \"content_type\": \"application/json\"\n  },\n  \"routing_key\": \"stock.bajo\",\n  \"payload\": \"{ esto no es json\",\n  \"payload_encoding\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{rabbitUser}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{rabbitPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"RabbitMQ enruto el mensaje a una cola\", () => pm.expect(pm.response.json().routed).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D02 El mensaje invalido llega a la cola de mensajes muertos (notificaciones.dlq)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{rabbitUrl}}/api/queues/%2F/notificaciones.dlq",
+              "host": [
+                "{{rabbitUrl}}"
+              ],
+              "path": [
+                "api",
+                "queues",
+                "%2F",
+                "notificaciones.dlq"
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{rabbitUser}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{rabbitPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(function () {}, 8000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const q = pm.response.json();",
+                  "pm.test(\"La DLQ tiene al menos un mensaje\", () => pm.expect(q.messages_ready || q.messages || 0).to.be.at.least(1));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

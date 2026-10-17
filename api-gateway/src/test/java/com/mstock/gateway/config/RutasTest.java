@@ -40,6 +40,8 @@ class RutasTest {
         assertThat(destinoDe("catalogo")).startsWith("lb://catalogo-service | Path=/api/productos/**");
         assertThat(destinoDe("inventario")).startsWith("lb://inventario-service | Path=/api/inventario/**");
         assertThat(destinoDe("ventas")).startsWith("lb://ventas-service | Path=/api/ventas/**");
+        assertThat(destinoDe("notificaciones"))
+                .startsWith("lb://notificaciones-service | Path=/api/notificaciones/**");
     }
 
     @Test
@@ -49,6 +51,7 @@ class RutasTest {
         assertThat(destinoDe("catalogo")).endsWith("forward:/fallback/catalogo");
         assertThat(destinoDe("inventario")).endsWith("forward:/fallback/inventario");
         assertThat(destinoDe("ventas")).endsWith("forward:/fallback/ventas");
+        assertThat(destinoDe("notificaciones")).endsWith("forward:/fallback/notificaciones");
     }
 
     @Test
@@ -58,7 +61,7 @@ class RutasTest {
                 .filter(k -> k.contains("predicates")).map(yml::getProperty).toList());
 
         for (String prefijo : new String[]{"/api/auth", "/api/usuarios", "/api/productos", "/api/categorias",
-                "/api/proveedores", "/api/inventario", "/api/ventas", "/api/clientes"}) {
+                "/api/proveedores", "/api/inventario", "/api/ventas", "/api/clientes", "/api/notificaciones"}) {
             assertThat(todas).as("ruta para " + prefijo).contains(prefijo + "/**");
         }
     }

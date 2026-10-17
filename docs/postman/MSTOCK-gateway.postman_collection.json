@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "MSTOCK Gateway (paso 29)",
-    "description": "Todo pasa por http://localhost:8080. Necesita encendidos: eureka, config-server, auth, catalogo, inventario, ventas y api-gateway. Ejecuta en el Runner las carpetas 0 a 3. La carpeta 4 es MANUAL (apagando servicios): desmárcala en el Runner.",
+    "description": "Todo pasa por http://localhost:8080. Necesita encendidos: eureka, config-server, auth, catalogo, inventario, ventas y api-gateway. Ejecuta en el Runner las carpetas 0 a 3. La carpeta 4 es MANUAL (apagando servicios): desmárcala en el Runner. Para las pruebas de notificaciones (F07 y F08) deben estar encendidos RabbitMQ y notificaciones-service.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -31,6 +31,10 @@
     },
     {
       "key": "ventaGw",
+      "value": ""
+    },
+    {
+      "key": "ventaGw2",
       "value": ""
     }
   ],
@@ -740,6 +744,112 @@
               }
             }
           ]
+        },
+        {
+          "name": "F07 Venta de 5 unidades (cajero): el stock baja a 3, bajo el mínimo (5)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/ventas",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productoId\": \"{{productoGw}}\",\n      \"cantidad\": 5\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"ventaGw2\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "F08 Llegan las notificaciones por RabbitMQ (venta y stock bajo) vía /api/notificaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/notificaciones?soloNoLeidas=true",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones?soloNoLeidas=true"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera 2 s a que RabbitMQ entregue los eventos antes de consultar.",
+                  "setTimeout(function () {}, 2000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const lista = pm.response.json();",
+                  "const prod = Number(pm.collectionVariables.get(\"productoGw\"));",
+                  "const venta = Number(pm.collectionVariables.get(\"ventaGw2\"));",
+                  "pm.test(\"Hay alerta STOCK_BAJO del producto\", () => pm.expect(lista.some(n => n.tipo === \"STOCK_BAJO\" && n.referenciaId === prod)).to.be.true);",
+                  "pm.test(\"Hay aviso VENTA_REGISTRADA de la venta F07\", () => pm.expect(lista.some(n => n.tipo === \"VENTA_REGISTRADA\" && n.referenciaId === venta)).to.be.true);"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -875,6 +985,59 @@
                   "type": "string"
                 }
               ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R04 Cajero llama a reversiones -> 403 (solo la cuenta de servicio o admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/inventario/reversiones",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "reversiones"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productoId\": \"{{productoGw}}\",\n      \"cantidad\": 50\n    }\n  ],\n  \"motivo\": \"intento\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [

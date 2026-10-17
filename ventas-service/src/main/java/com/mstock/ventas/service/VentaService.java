@@ -4,6 +4,7 @@ import com.mstock.ventas.client.CatalogoGateway;
 import com.mstock.ventas.client.InventarioGateway;
 import com.mstock.ventas.client.ItemLote;
 import com.mstock.ventas.client.ProductoCatalogo;
+import com.mstock.ventas.config.TokenServicio;
 import com.mstock.ventas.dto.ItemVentaRequest;
 import com.mstock.ventas.dto.VentaRequest;
 import com.mstock.ventas.dto.VentaResponse;
@@ -40,6 +41,7 @@ public class VentaService {
     private final InventarioGateway inventario;
     private final VentaRegistro registro;
     private final VentaRepository ventaRepository;
+    private final TokenServicio tokenServicio;
 
     public VentaResponse registrar(VentaRequest request, String usuario, String token) {
         if (request.clienteId() != null) {
@@ -107,7 +109,8 @@ public class VentaService {
 
     private void compensar(List<ItemLote> items, String token, RuntimeException causa) {
         try {
-            inventario.revertir(items, token);
+            // La reversión usa la cuenta de servicio: el cajero no tiene permiso de devolver stock por su cuenta.
+            inventario.revertir(items, tokenServicio.generar());
             log.warn("La venta no se pudo guardar ({}); el stock fue devuelto", causa.getMessage());
         } catch (RuntimeException ex) {
             log.error("REVERSIÓN PENDIENTE: la venta no se guardó y el stock no pudo devolverse. "

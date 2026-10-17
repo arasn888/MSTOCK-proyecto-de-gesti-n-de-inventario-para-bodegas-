@@ -52,6 +52,15 @@ spring:
                   args:
                     name: ventas
                     fallbackUri: forward:/fallback/ventas
+            - id: notificaciones
+              uri: lb://notificaciones-service
+              predicates:
+                - Path=/api/notificaciones/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: notificaciones
+                    fallbackUri: forward:/fallback/notificaciones
 
 management:
   endpoints:

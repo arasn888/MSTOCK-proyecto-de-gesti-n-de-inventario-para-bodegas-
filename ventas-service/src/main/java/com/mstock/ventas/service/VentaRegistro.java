@@ -3,6 +3,7 @@ package com.mstock.ventas.service;
 import com.mstock.ventas.dto.VentaResponse;
 import com.mstock.ventas.entity.DetalleVenta;
 import com.mstock.ventas.entity.Venta;
+import com.mstock.ventas.messaging.EventosPublisher;
 import com.mstock.ventas.repository.ClienteRepository;
 import com.mstock.ventas.repository.VentaRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class VentaRegistro {
 
     private final VentaRepository ventaRepository;
     private final ClienteRepository clienteRepository;
+    private final EventosPublisher eventos;
 
     @Transactional
     public VentaResponse guardar(Long clienteId, String usuario, List<LineaVenta> lineas) {
@@ -49,6 +51,8 @@ public class VentaRegistro {
         ventaRepository.saveAndFlush(venta);
         venta.setNumero(String.format("%s-%08d", SERIE, venta.getId()));
         ventaRepository.saveAndFlush(venta);
+        // Se envía al confirmarse la transacción, no antes.
+        eventos.ventaRegistrada(venta.getId(), usuario, total, lineas.size());
         return VentaResponse.desde(venta);
     }
 }

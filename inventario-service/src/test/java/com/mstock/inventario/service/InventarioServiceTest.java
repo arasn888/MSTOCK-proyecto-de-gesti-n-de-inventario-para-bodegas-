@@ -12,6 +12,7 @@ import com.mstock.inventario.exception.ReglaNegocioException;
 import com.mstock.inventario.exception.StockInsuficienteException;
 import com.mstock.inventario.repository.MovimientoRepository;
 import com.mstock.inventario.repository.StockRepository;
+import com.mstock.inventario.messaging.EventosPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +37,8 @@ class InventarioServiceTest {
     private StockRepository stockRepository;
     @Mock
     private MovimientoRepository movimientoRepository;
+    @Mock
+    private EventosPublisher eventos;
     @InjectMocks
     private InventarioService service;
 

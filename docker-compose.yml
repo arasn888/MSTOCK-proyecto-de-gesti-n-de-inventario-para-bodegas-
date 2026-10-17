@@ -18,6 +18,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: mstock-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - mstock-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
 
 volumes:
   mstock-mysql-data:
+  mstock-rabbitmq-data:
+
