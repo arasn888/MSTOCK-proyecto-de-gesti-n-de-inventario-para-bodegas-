@@ -1,6 +1,8 @@
 package com.mstock.inventario.service;
 
 import com.mstock.inventario.dto.AjusteRequest;
+import com.mstock.inventario.dto.ItemLote;
+import com.mstock.inventario.dto.LoteRequest;
 import com.mstock.inventario.dto.MovimientoRequest;
 import com.mstock.inventario.dto.MovimientoResponse;
 import com.mstock.inventario.dto.StockMinimoRequest;
@@ -17,7 +19,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 @Service
 @RequiredArgsConstructor
@@ -78,6 +83,49 @@ public class InventarioService {
         }
         return aplicar(stock, TipoMovimiento.SALIDA, request.cantidad(),
                 stock.getCantidad() - request.cantidad(), request.motivo(), usuario);
+    }
+
+    /**
+     * Salida de varios productos en una sola transacción: si uno no alcanza, no se descuenta ninguno.
+     * Los productos se procesan en orden de id para que dos ventas simultáneas con los mismos
+     * productos bloqueen las filas en el mismo orden y no se queden esperándose entre sí (deadlock).
+     */
+    @Transactional
+    public List<MovimientoResponse> registrarSalidaLote(LoteRequest request, String usuario) {
+        List<MovimientoResponse> resultado = new ArrayList<>();
+        for (ItemLote item : consolidar(request.items())) {
+            resultado.add(registrarSalida(
+                    new MovimientoRequest(item.productoId(), item.cantidad(), request.motivo()), usuario));
+        }
+        return resultado;
+    }
+
+    /** Devuelve stock de varios productos de una vez (reversión de una venta). Todo o nada. */
+    @Transactional
+    public List<MovimientoResponse> registrarEntradaLote(LoteRequest request, String usuario) {
+        List<MovimientoResponse> resultado = new ArrayList<>();
+        for (ItemLote item : consolidar(request.items())) {
+            resultado.add(registrarEntrada(
+                    new MovimientoRequest(item.productoId(), item.cantidad(), request.motivo()), usuario));
+        }
+        return resultado;
+    }
+
+    /** Une los productos repetidos sumando sus cantidades y los ordena por id. */
+    private List<ItemLote> consolidar(List<ItemLote> items) {
+        Map<Long, Long> sumas = new TreeMap<>();
+        for (ItemLote item : items) {
+            sumas.merge(item.productoId(), (long) item.cantidad(), Long::sum);
+        }
+        List<ItemLote> resultado = new ArrayList<>();
+        sumas.forEach((productoId, cantidad) -> {
+            if (cantidad > 1_000_000L) {
+                throw new ReglaNegocioException(
+                        "La cantidad total del producto " + productoId + " no puede superar 1 000 000");
+            }
+            resultado.add(new ItemLote(productoId, cantidad.intValue()));
+        });
+        return resultado;
     }
 
     /** Corrige el stock con el conteo físico real. Registra la diferencia en el kardex. */

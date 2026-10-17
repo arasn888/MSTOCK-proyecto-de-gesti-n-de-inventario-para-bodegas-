@@ -58,7 +58,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/inventario/salidas")
+                        .requestMatchers(HttpMethod.POST, "/api/inventario/salidas",
+                                "/api/inventario/salidas/lote", "/api/inventario/reversiones")
                                 .hasAnyRole("ADMIN", "ALMACENERO", "CAJERO")
                         .requestMatchers("/api/**").hasAnyRole("ADMIN", "ALMACENERO")
                         .anyRequest().authenticated())

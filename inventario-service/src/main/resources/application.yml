@@ -16,7 +16,22 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 2000
+            read-timeout: 4000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:9761/eureka/
 
 mstock:
   jwt:
     secret: ${JWT_SECRET}
+  # Para saltarse Eureka y llamar directo al catálogo, descomenta:
+  # catalogo:
+  #   url: http://localhost:9002

@@ -4,3 +4,5 @@ include 'config-server'
 include 'auth-service'
 include 'catalogo-service'
 include 'inventario-service'
+include 'ventas-service'
+
