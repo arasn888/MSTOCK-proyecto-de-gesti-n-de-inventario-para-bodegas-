@@ -15,6 +15,7 @@ Java 21, Spring Boot 4.1.1, Spring Cloud 2025.1.2, Gradle, MySQL 8.4 (Docker), F
 | catalogo-service | 9002 | mstock_catalogo | Productos, categorías y proveedores |
 | inventario-service | 9003 | mstock_inventario | Stock, kardex y alertas; valida productos con el catálogo (Feign) |
 | ventas-service | 9004 | mstock_ventas | Ventas y clientes; precio del catálogo y descuento de stock del inventario |
+| api-gateway | 8080 | - | Entrada única: valida el JWT y enruta a los servicios (Eureka); circuit breaker por ruta |
 
 Roles: `ADMIN`, `ALMACENERO`, `CAJERO`. Todos los servicios validan el mismo JWT.
 
@@ -30,6 +31,7 @@ Roles: `ADMIN`, `ALMACENERO`, `CAJERO`. Todos los servicios validan el mismo JWT
     .\gradlew.bat :catalogo-service:bootRun
     .\gradlew.bat :inventario-service:bootRun
     .\gradlew.bat :ventas-service:bootRun
+    .\gradlew.bat :api-gateway:bootRun
 
 Eureka: http://localhost:9761. Usuario inicial: `admin` (contraseña en `ADMIN_PASSWORD`; por defecto `Admin123*`,
 solo para desarrollo).
@@ -43,12 +45,23 @@ solo para desarrollo).
 Resiliencia: el catálogo se reintenta (lectura) y tiene circuit breaker; el inventario solo tiene circuit
 breaker, porque descontar stock no debe repetirse. Si un servicio está caído, la venta se rechaza con 503.
 
+## API Gateway (puerto 8080)
+Toda petición del frontend entra por `http://localhost:8080`; los puertos de cada servicio quedan solo para desarrollo.
+- Rutas: `/api/auth` y `/api/usuarios` -> auth; `/api/productos`, `/api/categorias` y `/api/proveedores` -> catálogo;
+  `/api/inventario` -> inventario; `/api/ventas` y `/api/clientes` -> ventas. Se resuelven por Eureka (`lb://`).
+- Seguridad: solo `POST /api/auth/login` y `/actuator/health` son públicos. El gateway rechaza con 401 lo que no traiga
+  un JWT válido (misma clave y emisor que auth). Los permisos por rol (403) los siguen decidiendo los servicios,
+  que también validan el token: saltarse el gateway no da acceso.
+- Resiliencia: cada ruta tiene un circuit breaker; si el servicio no responde, el gateway contesta 503 en JSON.
+  Un 503 que el propio servicio devuelve con su mensaje (ventas avisando que el inventario cayó) pasa sin cambios.
+
 ## Pruebas
     .\gradlew.bat test
     .\gradlew.bat :ventas-service:test
-Pruebas de la API: importar en Postman las colecciones de `docs/postman/` y ejecutarlas con el Runner.
+Pruebas de la API: importar en Postman las colecciones de `docs/postman/` y ejecutarlas con el Runner
+(`MSTOCK-gateway` prueba todo por el puerto 8080).
 La carpeta de resiliencia de cada colección es manual (requiere apagar un servicio).
 
 ## Pendiente
-RabbitMQ y notificaciones, compras-service, anulación de ventas, api-gateway, Angular, Docker/Kubernetes
+RabbitMQ y notificaciones, compras-service, anulación de ventas, Angular, Docker/Kubernetes
 y observabilidad. Mejora anotada: cuenta de servicio para las llamadas entre microservicios.

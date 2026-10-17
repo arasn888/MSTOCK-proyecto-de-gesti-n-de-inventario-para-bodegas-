@@ -1,0 +1,64 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  config:
+    import: optional:configserver:http://localhost:9888
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 2000
+            response-timeout: 25s
+          routes:
+            # Cada ruta: lb:// resuelve el servicio en Eureka; el filtro CircuitBreaker corta las
+            # llamadas a un servicio caído y responde con /fallback/<servicio> (503 en JSON).
+            - id: auth
+              uri: lb://auth-service
+              predicates:
+                - Path=/api/auth/**,/api/usuarios/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: auth
+                    fallbackUri: forward:/fallback/auth
+            - id: catalogo
+              uri: lb://catalogo-service
+              predicates:
+                - Path=/api/productos/**,/api/categorias/**,/api/proveedores/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: catalogo
+                    fallbackUri: forward:/fallback/catalogo
+            - id: inventario
+              uri: lb://inventario-service
+              predicates:
+                - Path=/api/inventario/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: inventario
+                    fallbackUri: forward:/fallback/inventario
+            - id: ventas
+              uri: lb://ventas-service
+              predicates:
+                - Path=/api/ventas/**,/api/clientes/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: ventas
+                    fallbackUri: forward:/fallback/ventas
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+mstock:
+  jwt:
+    secret: ${JWT_SECRET}

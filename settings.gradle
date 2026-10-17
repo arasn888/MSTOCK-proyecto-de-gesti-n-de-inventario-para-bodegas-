@@ -5,4 +5,4 @@ include 'auth-service'
 include 'catalogo-service'
 include 'inventario-service'
 include 'ventas-service'
-
+include 'api-gateway'
