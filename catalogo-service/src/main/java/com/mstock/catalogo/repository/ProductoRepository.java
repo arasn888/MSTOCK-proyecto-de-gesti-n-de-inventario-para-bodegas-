@@ -1,6 +1,7 @@
 package com.mstock.catalogo.repository;
 
 import com.mstock.catalogo.entity.Producto;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -19,4 +20,20 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
     long countByCategoriaId(Long categoriaId);
 
     long countByProveedorId(Long proveedorId);
+
+    @Override
+    @EntityGraph(attributePaths = {"categoria", "proveedor"})
+    Optional<Producto> findById(Long id);
+
+    @EntityGraph(attributePaths = {"categoria", "proveedor"})
+    List<Producto> findByActivoTrue();
+
+    @EntityGraph(attributePaths = {"categoria", "proveedor"})
+    List<Producto> findByActivoTrueAndCategoriaId(Long categoriaId);
+
+    @EntityGraph(attributePaths = {"categoria", "proveedor"})
+    List<Producto> findByActivoTrueAndNombreContainingIgnoreCase(String nombre);
+
+    @EntityGraph(attributePaths = {"categoria", "proveedor"})
+    List<Producto> findByActivoTrueAndCategoriaIdAndNombreContainingIgnoreCase(Long categoriaId, String nombre);
 }

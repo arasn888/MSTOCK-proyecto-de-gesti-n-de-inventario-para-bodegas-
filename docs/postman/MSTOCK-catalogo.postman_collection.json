@@ -1,0 +1,2418 @@
+{
+  "info": {
+    "name": "MSTOCK Catalogo",
+    "description": "Pruebas del catalogo-service (puerto 9002) con seguridad JWT. Requiere auth-service (9001) y catalogo-service (9002) encendidos. Ejecutar COMPLETA y en orden.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "catalogoUrl",
+      "value": "http://localhost:9002"
+    },
+    {
+      "key": "authUrl",
+      "value": "http://localhost:9001"
+    },
+    {
+      "key": "tokenAdmin",
+      "value": ""
+    },
+    {
+      "key": "tokenCajero",
+      "value": ""
+    },
+    {
+      "key": "tokenManipulado",
+      "value": ""
+    },
+    {
+      "key": "run",
+      "value": ""
+    },
+    {
+      "key": "categoriaId",
+      "value": ""
+    },
+    {
+      "key": "nombreMayus",
+      "value": ""
+    },
+    {
+      "key": "ruc",
+      "value": ""
+    },
+    {
+      "key": "ruc2",
+      "value": ""
+    },
+    {
+      "key": "proveedorId",
+      "value": ""
+    },
+    {
+      "key": "tmpProveedorId",
+      "value": ""
+    },
+    {
+      "key": "catProdId",
+      "value": ""
+    },
+    {
+      "key": "productoId",
+      "value": ""
+    },
+    {
+      "key": "productoBId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0 Autenticacion",
+      "item": [
+        {
+          "name": "A01 Login admin (auth-service)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Admin123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devuelve token de ADMIN\", () => { const j = pm.response.json(); pm.expect(j.token).to.be.a(\"string\"); pm.expect(j.rol).to.eql(\"ADMIN\"); });",
+                  "pm.collectionVariables.set(\"tokenAdmin\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A02 Crear cajero de prueba (auth-service)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/usuarios",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cajero_cat\",\n  \"password\": \"Cajero123*\",\n  \"nombres\": \"Cajero\",\n  \"apellidos\": \"Catalogo\",\n  \"email\": \"cajero_cat@mstock.com\",\n  \"rol\": \"CAJERO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Creado (201) o ya existente (409)\", () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A03 Login cajero (auth-service)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cajero_cat\",\n  \"password\": \"Cajero123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devuelve token de CAJERO\", () => pm.expect(pm.response.json().rol).to.eql(\"CAJERO\"));",
+                  "pm.collectionVariables.set(\"tokenCajero\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 Categorias",
+      "item": [
+        {
+          "name": "C01 Listar categorias (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const lista = pm.response.json();",
+                  "pm.test(\"Hay al menos las 6 categorias iniciales\", () => pm.expect(lista.length).to.be.at.least(6));",
+                  "pm.test(\"Incluye Abarrotes\", () => pm.expect(lista.map(c => c.nombre)).to.include(\"Abarrotes\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C02 Crear categoria (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cat Test {{run}}\",\n  \"descripcion\": \"Categoria creada por la coleccion de pruebas\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"run\", Date.now().toString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "const c = pm.response.json();",
+                  "pm.test(\"Tiene id y queda activa\", () => { pm.expect(c.id).to.be.a(\"number\"); pm.expect(c.activo).to.eql(true); });",
+                  "pm.test(\"Devuelve el header Location\", () => pm.expect(pm.response.headers.get(\"Location\")).to.include(\"/api/categorias/\"));",
+                  "pm.collectionVariables.set(\"categoriaId\", c.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C03 Obtener categoria por id (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias/{{categoriaId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias",
+                "{{categoriaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es la categoria creada\", () => pm.expect(pm.response.json().nombre).to.include(\"Cat Test\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C04 Actualizar categoria (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias/{{categoriaId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias",
+                "{{categoriaId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cat Test {{run}} v2\",\n  \"descripcion\": \"Descripcion actualizada\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nombre actualizado\", () => pm.expect(pm.response.json().nombre).to.include(\"v2\"));",
+                  "pm.test(\"Conserva el estado activo si no se envia\", () => pm.expect(pm.response.json().activo).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C05 Desactivar categoria (PUT activo=false)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias/{{categoriaId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias",
+                "{{categoriaId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cat Test {{run}} v2\",\n  \"descripcion\": \"Descripcion actualizada\",\n  \"activo\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda inactiva\", () => pm.expect(pm.response.json().activo).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C06 [Error] Nombre duplicado con otras mayusculas -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"{{nombreMayus}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"nombreMayus\", (\"Cat Test \" + pm.collectionVariables.get(\"run\") + \" v2\").toUpperCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Categoria duplicada (409)\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Mensaje indica que ya existe\", () => pm.expect(pm.response.json().mensaje).to.include(\"Ya existe\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C07 [Error] Nombre vacio -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Nombre vacio (400)\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje de validacion\", () => pm.expect(pm.response.json().mensaje).to.include(\"obligatorio\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C08 [Error] JSON malformado -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"nombre\": ",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cuerpo invalido (400)\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C09 [Error] Categoria inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias/999999",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias",
+                "999999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"No existe (404)\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Mensaje indica el id\", () => pm.expect(pm.response.json().mensaje).to.include(\"999999\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C10 [Error] Id con letras -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias/abc",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias",
+                "abc"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Parametro invalido (400)\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C11 Eliminar categoria (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias/{{categoriaId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias",
+                "{{categoriaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Eliminada (204)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C12 Confirmar que ya no existe -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias/{{categoriaId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias",
+                "{{categoriaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Ya no existe (404)\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Proveedores",
+      "item": [
+        {
+          "name": "P01 Crear proveedor (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ruc\": \"{{ruc}}\",\n  \"razonSocial\": \"Prov Test {{run}} SAC\",\n  \"telefono\": \"999888777\",\n  \"email\": \"ventas@proveedor.pe\",\n  \"direccion\": \"Av. Los Andes 123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const n = Date.now();",
+                  "pm.collectionVariables.set(\"ruc\", \"20\" + String(n).slice(-9));",
+                  "pm.collectionVariables.set(\"ruc2\", \"20\" + String(n + 12345).slice(-9));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Tiene id, RUC y queda activo\", () => { pm.expect(p.id).to.be.a(\"number\"); pm.expect(p.ruc).to.eql(pm.collectionVariables.get(\"ruc\")); pm.expect(p.activo).to.eql(true); });",
+                  "pm.collectionVariables.set(\"proveedorId\", p.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P02 Listar proveedores (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Incluye el proveedor creado\", () => pm.expect(pm.response.json().some(p => p.id == pm.collectionVariables.get(\"proveedorId\"))).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P03 Obtener proveedor por id (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores/{{proveedorId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores",
+                "{{proveedorId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es el proveedor creado\", () => pm.expect(pm.response.json().razonSocial).to.include(\"Prov Test\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P04 Actualizar proveedor (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores/{{proveedorId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores",
+                "{{proveedorId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ruc\": \"{{ruc}}\",\n  \"razonSocial\": \"Prov Test {{run}} SAC v2\",\n  \"telefono\": \"999888777\",\n  \"email\": \"ventas@proveedor.pe\",\n  \"direccion\": \"Av. Los Andes 123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Razon social actualizada\", () => pm.expect(pm.response.json().razonSocial).to.include(\"v2\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P05 [Error] RUC duplicado -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ruc\": \"{{ruc}}\",\n  \"razonSocial\": \"Otra empresa SAC\",\n  \"telefono\": \"999888777\",\n  \"email\": \"ventas@proveedor.pe\",\n  \"direccion\": \"Av. Los Andes 123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"RUC duplicado (409)\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Mensaje indica que ya existe\", () => pm.expect(pm.response.json().mensaje).to.include(\"Ya existe\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P06 [Error] RUC invalido -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ruc\": \"12345\",\n  \"razonSocial\": \"Empresa Invalida SAC\",\n  \"telefono\": \"999888777\",\n  \"email\": \"ventas@proveedor.pe\",\n  \"direccion\": \"Av. Los Andes 123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"RUC invalido (400)\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje menciona el RUC\", () => pm.expect(pm.response.json().mensaje).to.include(\"RUC\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P07 [Error] Correo invalido -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ruc\": \"20999999991\",\n  \"razonSocial\": \"Empresa Correo SAC\",\n  \"email\": \"no-es-correo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Correo invalido (400)\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje menciona el correo\", () => pm.expect(pm.response.json().mensaje).to.include(\"correo\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P08 [Error] Proveedor inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores/999999",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores",
+                "999999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"No existe (404)\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P09 Crear proveedor temporal (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ruc\": \"{{ruc2}}\",\n  \"razonSocial\": \"Prov Temp {{run}} SAC\",\n  \"telefono\": \"999888777\",\n  \"email\": \"ventas@proveedor.pe\",\n  \"direccion\": \"Av. Los Andes 123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"tmpProveedorId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P10 Eliminar proveedor temporal (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores/{{tmpProveedorId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores",
+                "{{tmpProveedorId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Eliminado (204)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P11 Confirmar que ya no existe -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores/{{tmpProveedorId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores",
+                "{{tmpProveedorId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Ya no existe (404)\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 Productos",
+      "item": [
+        {
+          "name": "D01 Crear categoria para los productos (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cat Prod {{run}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"catProdId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D02 Crear producto con proveedor (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"tst-{{run}}\",\n  \"nombre\": \"Gaseosa Test {{run}}\",\n  \"descripcion\": \"Producto de prueba\",\n  \"precioCompra\": 2.5,\n  \"precioVenta\": 3.5,\n  \"unidadMedida\": \"unidad\",\n  \"proveedorId\": {{proveedorId}},\n  \"categoriaId\": {{catProdId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Normaliza el codigo a mayusculas\", () => pm.expect(p.codigo).to.eql(\"TST-\" + pm.collectionVariables.get(\"run\")));",
+                  "pm.test(\"Unidad de medida en mayusculas\", () => pm.expect(p.unidadMedida).to.eql(\"UNIDAD\"));",
+                  "pm.test(\"Incluye categoria y proveedor\", () => { pm.expect(p.categoriaNombre).to.include(\"Cat Prod\"); pm.expect(p.proveedorNombre).to.include(\"Prov Test\"); });",
+                  "pm.test(\"Queda activo\", () => pm.expect(p.activo).to.eql(true));",
+                  "pm.collectionVariables.set(\"productoId\", p.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D03 Crear producto sin proveedor (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"TST-{{run}}-B\",\n  \"nombre\": \"Agua Test {{run}}\",\n  \"descripcion\": \"Producto de prueba\",\n  \"precioCompra\": 1.0,\n  \"precioVenta\": 1.5,\n  \"unidadMedida\": \"unidad\",\n  \"categoriaId\": {{catProdId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"El proveedor es opcional\", () => pm.expect(p.proveedorId === null || p.proveedorId === undefined).to.be.true);",
+                  "pm.collectionVariables.set(\"productoBId\", p.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D04 Listar productos (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Incluye los dos productos creados\", () => { const ids = pm.response.json().map(p => p.id); pm.expect(ids).to.include(Number(pm.collectionVariables.get(\"productoId\"))); pm.expect(ids).to.include(Number(pm.collectionVariables.get(\"productoBId\"))); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D05 Buscar por nombre (GET ?nombre=)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos?nombre=Gaseosa%20Test%20{{run}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "nombre",
+                  "value": "Gaseosa%20Test%20{{run}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Encuentra solo la gaseosa\", () => { pm.expect(r.length).to.eql(1); pm.expect(r[0].nombre).to.include(\"Gaseosa Test\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D06 Filtrar por categoria (GET ?categoriaId=)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos?categoriaId={{catProdId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "categoriaId",
+                  "value": "{{catProdId}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devuelve los 2 productos de la categoria\", () => pm.expect(pm.response.json().length).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D07 Combinar categoria y nombre (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos?categoriaId={{catProdId}}&nombre=gaseosa",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "categoriaId",
+                  "value": "{{catProdId}}"
+                },
+                {
+                  "key": "nombre",
+                  "value": "gaseosa"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devuelve solo la gaseosa\", () => pm.expect(pm.response.json().length).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D08 Obtener producto por id (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos/{{productoId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Trae los datos de la categoria\", () => pm.expect(pm.response.json().categoriaNombre).to.include(\"Cat Prod\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D09 Actualizar producto (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos/{{productoId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"TST-{{run}}\",\n  \"nombre\": \"Gaseosa Test {{run}} 1 L\",\n  \"descripcion\": \"Producto de prueba\",\n  \"precioCompra\": 2.5,\n  \"precioVenta\": 4.0,\n  \"unidadMedida\": \"unidad\",\n  \"proveedorId\": {{proveedorId}},\n  \"categoriaId\": {{catProdId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Precio y nombre actualizados\", () => { pm.expect(p.precioVenta).to.eql(4); pm.expect(p.nombre).to.include(\"1 L\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D10 [Error] Codigo duplicado (en minusculas) -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"tst-{{run}}\",\n  \"nombre\": \"Otro producto\",\n  \"descripcion\": \"Producto de prueba\",\n  \"precioCompra\": 1,\n  \"precioVenta\": 2,\n  \"unidadMedida\": \"unidad\",\n  \"proveedorId\": {{proveedorId}},\n  \"categoriaId\": {{catProdId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Codigo duplicado (409)\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Mensaje indica que ya existe\", () => pm.expect(pm.response.json().mensaje).to.include(\"Ya existe\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D11 [Error] Precio de venta menor al de compra -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"TST-{{run}}-X\",\n  \"nombre\": \"Producto con perdida\",\n  \"descripcion\": \"Producto de prueba\",\n  \"precioCompra\": 5.0,\n  \"precioVenta\": 3.0,\n  \"unidadMedida\": \"unidad\",\n  \"proveedorId\": {{proveedorId}},\n  \"categoriaId\": {{catProdId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regla de precios (400)\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje explica la regla\", () => pm.expect(pm.response.json().mensaje).to.include(\"precio de venta\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D12 [Error] Categoria inexistente -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"TST-{{run}}-Y\",\n  \"nombre\": \"Producto sin categoria\",\n  \"descripcion\": \"Producto de prueba\",\n  \"precioCompra\": 1,\n  \"precioVenta\": 2,\n  \"unidadMedida\": \"unidad\",\n  \"proveedorId\": {{proveedorId}},\n  \"categoriaId\": 999999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Categoria inexistente (400)\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje menciona la categoria\", () => pm.expect(pm.response.json().mensaje).to.include(\"categoría\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D13 [Error] Proveedor inexistente -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"TST-{{run}}-Z\",\n  \"nombre\": \"Producto sin proveedor valido\",\n  \"descripcion\": \"Producto de prueba\",\n  \"precioCompra\": 1,\n  \"precioVenta\": 2,\n  \"unidadMedida\": \"unidad\",\n  \"proveedorId\": 999999,\n  \"categoriaId\": {{catProdId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Proveedor inexistente (400)\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje menciona el proveedor\", () => pm.expect(pm.response.json().mensaje).to.include(\"proveedor\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D14 [Error] Datos invalidos -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"\",\n  \"nombre\": \"\",\n  \"precioCompra\": -1,\n  \"precioVenta\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Datos invalidos (400)\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Lista varios mensajes\", () => pm.expect(pm.response.json().mensaje).to.include(\";\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 Reglas de integridad y bajas",
+      "item": [
+        {
+          "name": "R01 [Error] Eliminar categoria con productos -> 409",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias/{{catProdId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias",
+                "{{catProdId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Categoria en uso (409)\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Mensaje indica los productos asociados\", () => pm.expect(pm.response.json().mensaje).to.include(\"producto\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R02 [Error] Eliminar proveedor con productos -> 409",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores/{{proveedorId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores",
+                "{{proveedorId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Proveedor en uso (409)\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Mensaje indica los productos asociados\", () => pm.expect(pm.response.json().mensaje).to.include(\"producto\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R03 Eliminar producto: baja logica (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos/{{productoId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Dado de baja (204)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R04 El producto ya no aparece en el listado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"No aparece el producto dado de baja\", () => pm.expect(pm.response.json().map(p => p.id)).to.not.include(Number(pm.collectionVariables.get(\"productoId\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R05 El producto sigue consultable con activo=false",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos/{{productoId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Esta inactivo\", () => pm.expect(pm.response.json().activo).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R06 Dar de baja el segundo producto (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos/{{productoBId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoBId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Dado de baja (204)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R07 [Error] Producto inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos/999999",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "999999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"No existe (404)\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5 Seguridad por rol y token",
+      "item": [
+        {
+          "name": "S01 [Error] Consultar sin token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Sin token (401)\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Pide autenticacion con un mensaje claro\", () => pm.expect(pm.response.json().mensaje).to.include(\"autenticación\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S02 [Error] Token invalido -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "abc.def.ghi",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Token invalido (401)\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Indica que el token es invalido\", () => pm.expect(pm.response.json().mensaje).to.include(\"inválido\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S03 [Error] Token con la firma alterada -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenManipulado}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t = pm.collectionVariables.get(\"tokenAdmin\");",
+                  "pm.collectionVariables.set(\"tokenManipulado\", t.slice(0, -4) + \"AAAA\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Firma alterada (401)\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S04 [Error] Crear sin token -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cat Sin Permiso {{run}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"POST sin token (401)\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S05 Cajero puede consultar productos (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cajero consulta productos (200)\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S06 Cajero puede consultar categorias (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cajero consulta categorias (200)\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S07 [Error] Cajero no puede crear categoria -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/categorias",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "categorias"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cat Sin Permiso {{run}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cajero no crea categorias (403)\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Mensaje de permiso\", () => pm.expect(pm.response.json().mensaje).to.include(\"permiso\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S08 [Error] Cajero no puede crear proveedor -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/proveedores",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "proveedores"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ruc\": \"20111111111\",\n  \"razonSocial\": \"Sin Permiso SAC\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cajero no crea proveedores (403)\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S09 [Error] Cajero no puede crear producto -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"SIN-PERMISO\",\n  \"nombre\": \"Producto sin permiso\",\n  \"descripcion\": \"Producto de prueba\",\n  \"precioCompra\": 1,\n  \"precioVenta\": 2,\n  \"unidadMedida\": \"unidad\",\n  \"categoriaId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cajero no crea productos (403)\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S10 [Error] Cajero no puede actualizar producto -> 403",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos/{{productoBId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoBId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"SIN-PERMISO\",\n  \"nombre\": \"Producto sin permiso\",\n  \"descripcion\": \"Producto de prueba\",\n  \"precioCompra\": 1,\n  \"precioVenta\": 2,\n  \"unidadMedida\": \"unidad\",\n  \"categoriaId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cajero no actualiza productos (403)\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S11 [Error] Cajero no puede eliminar producto -> 403",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos/{{productoBId}}",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoBId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cajero no elimina productos (403)\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S12 Estado del servicio es publico (actuator/health)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogoUrl}}/actuator/health",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Estado UP\", () => pm.expect(pm.response.json().status).to.eql(\"UP\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{tokenAdmin}}",
+        "type": "string"
+      }
+    ]
+  }
+}

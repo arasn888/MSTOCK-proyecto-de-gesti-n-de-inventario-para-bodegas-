@@ -175,4 +175,26 @@ class ProductoRepositoryTest {
         assertThat(repository.countByCategoriaId(lacteos.getId())).isEqualTo(1);
         assertThat(repository.countByProveedorId(proveedor.getId())).isEqualTo(2);
     }
+
+    @Test
+    @DisplayName("Listar activos: excluye las bajas y filtra por categoría y nombre")
+    void listarActivos() {
+        repository.save(producto("GAS-001", "Gaseosa Cola 500 ml", bebidas, proveedor));
+        Producto dadoDeBaja = producto("GAS-002", "Gaseosa Naranja 500 ml", bebidas, proveedor);
+        dadoDeBaja.setActivo(false);
+        repository.save(dadoDeBaja);
+        repository.save(producto("LEC-001", "Leche entera 1 L", lacteos, proveedor));
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(repository.findByActivoTrue())
+                .extracting(Producto::getCodigo)
+                .containsExactlyInAnyOrder("GAS-001", "LEC-001");
+        assertThat(repository.findByActivoTrueAndCategoriaId(bebidas.getId()))
+                .extracting(Producto::getCodigo)
+                .containsExactly("GAS-001");
+        assertThat(repository.findByActivoTrueAndNombreContainingIgnoreCase("gaseosa")).hasSize(1);
+        assertThat(repository.findByActivoTrueAndCategoriaIdAndNombreContainingIgnoreCase(
+                bebidas.getId(), "gaseosa")).hasSize(1);
+    }
 }

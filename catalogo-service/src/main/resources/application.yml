@@ -16,3 +16,7 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+
+mstock:
+  jwt:
+    secret: ${JWT_SECRET}
