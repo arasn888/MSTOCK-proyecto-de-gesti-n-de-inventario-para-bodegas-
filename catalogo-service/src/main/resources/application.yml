@@ -1,0 +1,18 @@
+server:
+  port: 9002
+
+spring:
+  application:
+    name: catalogo-service
+  config:
+    import: optional:configserver:http://localhost:9888
+  datasource:
+    url: jdbc:mysql://localhost:3307/mstock_catalogo?useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USER:mstock_user}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  flyway:
+    enabled: true
