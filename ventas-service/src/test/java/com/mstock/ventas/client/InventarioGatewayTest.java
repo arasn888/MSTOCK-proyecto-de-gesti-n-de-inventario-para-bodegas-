@@ -71,6 +71,17 @@ class InventarioGatewayTest {
     }
 
     @Test
+    @DisplayName("409 que no es de stock: no se disfraza de stock insuficiente")
+    void conflictoQueNoEsStock() {
+        doThrow(error(409, "{\"estado\":409,\"mensaje\":\"otra operación modificó el mismo registro\"}"))
+                .when(client).salidaLote(any(), any());
+
+        assertThatThrownBy(() -> gateway.descontar(ITEMS, "abc"))
+                .isInstanceOf(com.mstock.ventas.exception.ReglaNegocioException.class)
+                .hasMessageContaining("otra operación");
+    }
+
+    @Test
     @DisplayName("409 del inventario: stock insuficiente con el mensaje original, sin contar como caída")
     void stockInsuficiente() {
         doThrow(error(409, "{\"estado\":409,\"mensaje\":\"Stock insuficiente: disponible 1, solicitado 5\"}"))

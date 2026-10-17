@@ -47,8 +47,9 @@ public class UsuarioController {
 
     @PutMapping("/{id}")
     public UsuarioResponse actualizar(@PathVariable Long id,
-                                      @Valid @RequestBody UsuarioUpdateRequest request) {
-        return usuarioService.actualizar(id, request);
+                                      @Valid @RequestBody UsuarioUpdateRequest request,
+                                      Authentication authentication) {
+        return usuarioService.actualizar(id, request, authentication.getName());
     }
 
     @DeleteMapping("/{id}")

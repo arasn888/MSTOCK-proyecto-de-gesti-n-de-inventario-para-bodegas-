@@ -3,6 +3,7 @@ package com.mstock.auth.service;
 import com.mstock.auth.dto.UsuarioRequest;
 import com.mstock.auth.dto.UsuarioResponse;
 import com.mstock.auth.dto.UsuarioUpdateRequest;
+import com.mstock.auth.entity.Rol;
 import com.mstock.auth.entity.Usuario;
 import com.mstock.auth.exception.OperacionNoPermitidaException;
 import com.mstock.auth.exception.RecursoDuplicadoException;
@@ -57,8 +58,16 @@ public class UsuarioService {
     }
 
     @Transactional
-    public UsuarioResponse actualizar(Long id, UsuarioUpdateRequest request) {
+    public UsuarioResponse actualizar(Long id, UsuarioUpdateRequest request, String usernameActual) {
         Usuario usuario = buscar(id);
+
+        // Un administrador no puede quitarse a sí mismo el acceso (desactivarse o perder el rol ADMIN):
+        // si fuera el único, nadie podría volver a administrar el sistema.
+        if (usuario.getUsername().equals(usernameActual)
+                && (!request.activo() || request.rol() != Rol.ADMIN)) {
+            throw new OperacionNoPermitidaException(
+                    "No puedes desactivarte ni quitarte el rol de administrador a ti mismo");
+        }
 
         boolean cambioEmail = !usuario.getEmail().equalsIgnoreCase(request.email());
         if (cambioEmail && usuarioRepository.existsByEmail(request.email())) {

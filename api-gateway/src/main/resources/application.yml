@@ -12,7 +12,7 @@ spring:
         webflux:
           httpclient:
             connect-timeout: 2000
-            response-timeout: 25s
+            response-timeout: 35s
           routes:
             # Cada ruta: lb:// resuelve el servicio en Eureka; el filtro CircuitBreaker corta las
             # llamadas a un servicio caído y responde con /fallback/<servicio> (503 en JSON).

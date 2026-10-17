@@ -1,6 +1,7 @@
 package com.mstock.inventario.exception;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -28,6 +29,14 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ServicioNoDisponibleException.class)
     public ResponseEntity<ErrorResponse> servicioNoDisponible(ServicioNoDisponibleException ex) {
         return construir(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
+
+    /** Bloqueo de fila agotado o deadlock en MySQL: la transacción se revirtió, no se movió stock. */
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> bloqueo(PessimisticLockingFailureException ex) {
+        return construir(HttpStatus.SERVICE_UNAVAILABLE,
+                "El inventario está ocupado con otra operación sobre el mismo producto; no se movió stock. "
+                        + "Inténtalo de nuevo");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

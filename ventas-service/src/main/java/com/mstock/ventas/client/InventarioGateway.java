@@ -61,7 +61,12 @@ public class InventarioGateway {
         try {
             operacion.run();
         } catch (FeignException.Conflict e) {
-            throw new StockInsuficienteException(mensaje(e, "Stock insuficiente"));
+            String mensaje = mensaje(e, "Stock insuficiente");
+            if (mensaje.startsWith("Stock insuficiente")) {
+                throw new StockInsuficienteException(mensaje);
+            }
+            // Otro conflicto (p. ej. otra operación modificó el mismo registro): no es falta de stock.
+            throw new ReglaNegocioException(mensaje);
         } catch (FeignException.BadRequest e) {
             throw new ReglaNegocioException(mensaje(e, "El inventario rechazó la operación"));
         } catch (FeignException.NotFound e) {

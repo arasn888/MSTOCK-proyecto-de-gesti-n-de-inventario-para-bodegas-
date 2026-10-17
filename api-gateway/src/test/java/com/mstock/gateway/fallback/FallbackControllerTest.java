@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,6 +29,25 @@ class FallbackControllerTest {
         assertThat(controller.respaldo("inventario").getBody().mensaje()).contains("inventario");
         assertThat(controller.respaldo("catalogo").getBody().mensaje()).contains("catálogo");
         assertThat(controller.respaldo("auth").getBody().mensaje()).contains("autenticación");
+    }
+
+    @Test
+    @DisplayName("En una escritura no afirma que la operación no se realizó: pide verificar antes de reintentar")
+    void escrituraPideVerificar() {
+        var peticion = MockServerHttpRequest.post("/fallback/ventas").build();
+
+        String mensaje = controller.respaldo("ventas", peticion).getBody().mensaje();
+
+        assertThat(mensaje).contains("no está respondiendo").contains("verifica antes de reintentarla");
+        assertThat(mensaje).doesNotContain("no se realizó");
+    }
+
+    @Test
+    @DisplayName("En una lectura sí dice que no se realizó nada")
+    void lecturaDiceNoSeRealizo() {
+        var peticion = MockServerHttpRequest.get("/fallback/ventas").build();
+
+        assertThat(controller.respaldo("ventas", peticion).getBody().mensaje()).contains("no se realizó");
     }
 
     @Test

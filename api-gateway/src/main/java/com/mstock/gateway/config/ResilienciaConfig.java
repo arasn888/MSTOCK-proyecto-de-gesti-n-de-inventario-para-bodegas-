@@ -17,7 +17,8 @@ import java.time.Duration;
  * mensaje (por ejemplo ventas avisando que el inventario está caído) pasa tal cual.
  *
  * El límite de tiempo por defecto de Resilience4J es 1 s: muy poco para registrar una venta, que
- * llama a otros dos servicios. Por eso se amplía a 20 s.
+ * llama a otros dos servicios. Por eso se amplía a 30 s (menos que el response-timeout de 35 s del cliente HTTP, para que el corte lo
+ * decida siempre el circuit breaker).
  */
 @Configuration
 public class ResilienciaConfig {
@@ -34,7 +35,7 @@ public class ResilienciaConfig {
                         .permittedNumberOfCallsInHalfOpenState(3)
                         .build())
                 .timeLimiterConfig(TimeLimiterConfig.custom()
-                        .timeoutDuration(Duration.ofSeconds(20))
+                        .timeoutDuration(Duration.ofSeconds(30))
                         .build())
                 .build());
     }
