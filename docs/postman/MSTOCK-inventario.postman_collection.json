@@ -1,0 +1,1580 @@
+{
+  "info": {
+    "name": "MSTOCK Inventario",
+    "description": "Pruebas del inventario-service (puerto 9003): entradas, salidas, ajustes, kardex, alertas y seguridad por rol. Requiere auth-service (9001) e inventario-service (9003). Ejecutar COMPLETA y en orden.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{tokenAdmin}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "inventarioUrl",
+      "value": "http://localhost:9003"
+    },
+    {
+      "key": "authUrl",
+      "value": "http://localhost:9001"
+    },
+    {
+      "key": "tokenAdmin",
+      "value": ""
+    },
+    {
+      "key": "tokenAlmacenero",
+      "value": ""
+    },
+    {
+      "key": "tokenCajero",
+      "value": ""
+    },
+    {
+      "key": "productoId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0 Autenticacion",
+      "item": [
+        {
+          "name": "A01 Login admin (auth-service)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Admin123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenAdmin\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A02 Crear almacenero de prueba",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/usuarios",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"almacenero_inv\",\n  \"password\": \"Cajero123*\",\n  \"nombres\": \"Prueba\",\n  \"apellidos\": \"Inventario\",\n  \"email\": \"almacenero_inv@mstock.com\",\n  \"rol\": \"ALMACENERO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Creado (201) o ya existente (409)\", () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A03 Crear cajero de prueba",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/usuarios",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cajero_cat\",\n  \"password\": \"Cajero123*\",\n  \"nombres\": \"Prueba\",\n  \"apellidos\": \"Inventario\",\n  \"email\": \"cajero_cat@mstock.com\",\n  \"rol\": \"CAJERO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Creado (201) o ya existente (409)\", () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A04 Login almacenero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"almacenero_inv\",\n  \"password\": \"Cajero123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es ALMACENERO\", () => pm.expect(pm.response.json().rol).to.eql(\"ALMACENERO\"));",
+                  "pm.collectionVariables.set(\"tokenAlmacenero\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A05 Login cajero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cajero_cat\",\n  \"password\": \"Cajero123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es CAJERO\", () => pm.expect(pm.response.json().rol).to.eql(\"CAJERO\"));",
+                  "pm.collectionVariables.set(\"tokenCajero\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 Flujo de inventario",
+      "item": [
+        {
+          "name": "I01 Entrada inicial de 20 unidades (almacenero)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/entradas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "entradas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidad\": 20,\n  \"motivo\": \"Compra inicial\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAlmacenero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"productoId\", String(1000000 + Number(String(Date.now()).slice(-7))));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "const m = pm.response.json();",
+                  "pm.test(\"Es una ENTRADA\", () => pm.expect(m.tipo).to.eql(\"ENTRADA\"));",
+                  "pm.test(\"Stock anterior 0\", () => pm.expect(m.stockAnterior).to.eql(0));",
+                  "pm.test(\"Stock resultante 20\", () => pm.expect(m.stockResultante).to.eql(20));",
+                  "pm.test(\"Registra al usuario del token\", () => pm.expect(m.usuario).to.eql(\"almacenero_inv\"));",
+                  "pm.test(\"Location apunta al kardex\", () => pm.expect(pm.response.headers.get(\"Location\")).to.include(\"/movimientos\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I02 Consultar el stock",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{productoId}}",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{productoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test(\"Cantidad 20\", () => pm.expect(s.cantidad).to.eql(20));",
+                  "pm.test(\"Stock minimo por defecto 5\", () => pm.expect(s.stockMinimo).to.eql(5));",
+                  "pm.test(\"No esta bajo el minimo\", () => pm.expect(s.bajoMinimo).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I03 Salida de 8 unidades (cajero)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/salidas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "salidas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidad\": 8,\n  \"motivo\": \"Venta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "const m = pm.response.json();",
+                  "pm.test(\"Es una SALIDA\", () => pm.expect(m.tipo).to.eql(\"SALIDA\"));",
+                  "pm.test(\"Quedan 12\", () => pm.expect(m.stockResultante).to.eql(12));",
+                  "pm.test(\"Registra al cajero\", () => pm.expect(m.usuario).to.eql(\"cajero_cat\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I04 Segunda salida de 8 unidades (cajero)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/salidas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "salidas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidad\": 8,\n  \"motivo\": \"Venta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Quedan 4\", () => pm.expect(pm.response.json().stockResultante).to.eql(4));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I05 El producto ya esta bajo el minimo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{productoId}}",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{productoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"bajoMinimo es true (4 <= 5)\", () => pm.expect(pm.response.json().bajoMinimo).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I06 Alertas incluyen el producto",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/alertas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "alertas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"El producto aparece en alertas\", () => pm.expect(pm.response.json().map(s => s.productoId)).to.include(Number(pm.collectionVariables.get(\"productoId\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I07 [Error] Salida mayor al stock -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/salidas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "salidas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidad\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Stock insuficiente (409)\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Mensaje de stock insuficiente\", () => pm.expect(pm.response.json().mensaje).to.include(\"Stock insuficiente\"));",
+                  "pm.test(\"Indica lo disponible\", () => pm.expect(pm.response.json().mensaje).to.include(\"disponible 4\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I08 Entrada de 10 unidades (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/entradas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "entradas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidad\": 10,\n  \"motivo\": \"Reposicion\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Stock resultante 14\", () => pm.expect(pm.response.json().stockResultante).to.eql(14));",
+                  "pm.test(\"Registra al admin\", () => pm.expect(pm.response.json().usuario).to.eql(\"admin\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I09 Ajuste por conteo fisico a 12 (almacenero)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/ajustes",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "ajustes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidadReal\": 12,\n  \"motivo\": \"Conteo fisico\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAlmacenero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "const m = pm.response.json();",
+                  "pm.test(\"Es un AJUSTE\", () => pm.expect(m.tipo).to.eql(\"AJUSTE\"));",
+                  "pm.test(\"Diferencia de 2\", () => pm.expect(m.cantidad).to.eql(2));",
+                  "pm.test(\"Antes 14\", () => pm.expect(m.stockAnterior).to.eql(14));",
+                  "pm.test(\"Despues 12\", () => pm.expect(m.stockResultante).to.eql(12));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I10 [Error] Ajuste igual al stock actual -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/ajustes",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "ajustes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidadReal\": 12,\n  \"motivo\": \"Conteo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAlmacenero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Nada que ajustar (400)\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje explica el motivo\", () => pm.expect(pm.response.json().mensaje).to.include(\"nada que ajustar\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I11 Subir el stock minimo a 10 (almacenero)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{productoId}}/stock-minimo",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{productoId}}",
+                "stock-minimo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stockMinimo\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAlmacenero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Minimo 10\", () => pm.expect(pm.response.json().stockMinimo).to.eql(10));",
+                  "pm.test(\"12 > 10: ya no esta bajo el minimo\", () => pm.expect(pm.response.json().bajoMinimo).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I12 Kardex del producto (5 movimientos, del mas reciente al mas antiguo)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{productoId}}/movimientos",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{productoId}}",
+                "movimientos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Hay 5 movimientos (la salida rechazada no se registra)\", () => pm.expect(pm.response.json().length).to.eql(5));",
+                  "pm.test(\"Orden correcto del kardex\", () => pm.expect(pm.response.json().map(m => m.tipo)).to.eql([\"AJUSTE\", \"ENTRADA\", \"SALIDA\", \"SALIDA\", \"ENTRADA\"]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I13 Listar el inventario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Incluye el producto\", () => pm.expect(pm.response.json().map(s => s.productoId)).to.include(Number(pm.collectionVariables.get(\"productoId\"))));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Validaciones y reglas",
+      "item": [
+        {
+          "name": "V01 [Error] Cantidad 0 -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/entradas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "entradas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidad\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje de cantidad minima\", () => pm.expect(pm.response.json().mensaje).to.include(\"al menos 1\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "V02 [Error] Cantidad negativa -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/entradas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "entradas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidad\": -5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "V03 [Error] Sin producto -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/entradas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "entradas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cantidad\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje menciona el producto\", () => pm.expect(pm.response.json().mensaje).to.include(\"producto\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "V04 [Error] Ajuste sin motivo -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/ajustes",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "ajustes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidadReal\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje menciona el motivo\", () => pm.expect(pm.response.json().mensaje).to.include(\"motivo\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "V05 [Error] Stock minimo negativo -> 400",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{productoId}}/stock-minimo",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{productoId}}",
+                "stock-minimo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stockMinimo\": -1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "V06 [Error] Producto sin inventario -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/999999999",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "999999999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Mensaje claro\", () => pm.expect(pm.response.json().mensaje).to.include(\"no tiene registro\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "V07 [Error] Salida de un producto sin stock -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/salidas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "salidas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": 999999998,\n  \"cantidad\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Indica que no hay stock\", () => pm.expect(pm.response.json().mensaje).to.include(\"disponible 0\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "V08 [Error] Id con letras -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/abc",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "abc"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "V09 [Error] JSON malformado -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/entradas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "entradas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"productoId\": ",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 Seguridad por rol y token",
+      "item": [
+        {
+          "name": "S01 [Error] Sin token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Pide autenticacion\", () => pm.expect(pm.response.json().mensaje).to.include(\"autenticación\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S02 [Error] Token invalido -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "abc.def.ghi",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Indica que el token es invalido\", () => pm.expect(pm.response.json().mensaje).to.include(\"inválido\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S03 Cajero puede consultar el inventario (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S04 [Error] Cajero no puede registrar entradas -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/entradas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "entradas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidad\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Mensaje de permiso\", () => pm.expect(pm.response.json().mensaje).to.include(\"permiso\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S05 [Error] Cajero no puede ajustar -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/ajustes",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "ajustes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{productoId}},\n  \"cantidadReal\": 3,\n  \"motivo\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S06 [Error] Cajero no puede cambiar el stock minimo -> 403",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{productoId}}/stock-minimo",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{productoId}}",
+                "stock-minimo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stockMinimo\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S07 Estado del servicio es publico (actuator/health)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventarioUrl}}/actuator/health",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Estado UP\", () => pm.expect(pm.response.json().status).to.eql(\"UP\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
