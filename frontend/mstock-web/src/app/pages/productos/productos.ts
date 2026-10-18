@@ -60,7 +60,7 @@ import { ProductoForm } from './producto-form';
 
       <div class="filtros">
         <mat-form-field appearance="outline" class="buscador">
-          <mat-label>Buscar por nombre</mat-label>
+          <mat-label>Buscar por nombre o código</mat-label>
           <input matInput [formControl]="nombre" />
           <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>

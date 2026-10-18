@@ -12,6 +12,7 @@ const enConstruccion = () =>
 const implementadas: Partial<Record<string, Route['loadComponent']>> = {
   '/categorias': () => import('./pages/categorias/categorias').then((m) => m.Categorias),
   '/proveedores': () => import('./pages/proveedores/proveedores').then((m) => m.Proveedores),
+  '/inventario': () => import('./pages/inventario/inventario').then((m) => m.Inventario),
   '/productos': () => import('./pages/productos/productos').then((m) => m.Productos),
 };
 

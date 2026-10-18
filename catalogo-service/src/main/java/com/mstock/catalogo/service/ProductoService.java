@@ -31,16 +31,25 @@ public class ProductoService {
         boolean hayNombre = nombre != null && !nombre.isBlank();
         List<Producto> productos;
         if (hayNombre && categoriaId != null) {
-            productos = productoRepository
-                    .findByActivoTrueAndCategoriaIdAndNombreContainingIgnoreCase(categoriaId, nombre.trim());
+            productos = productoRepository.buscarActivosPorTextoYCategoria(nombre.trim(), categoriaId);
         } else if (hayNombre) {
-            productos = productoRepository.findByActivoTrueAndNombreContainingIgnoreCase(nombre.trim());
+            productos = productoRepository.buscarActivosPorTexto(nombre.trim());
         } else if (categoriaId != null) {
             productos = productoRepository.findByActivoTrueAndCategoriaId(categoriaId);
         } else {
             productos = productoRepository.findByActivoTrue();
         }
         return productos.stream().map(ProductoResponse::desde).toList();
+    }
+
+    /** Producto activo por su código exacto (lo usa el lector de código de barras del punto de venta). */
+    @Transactional(readOnly = true)
+    public ProductoResponse obtenerPorCodigo(String codigo) {
+        String buscado = normalizarCodigo(codigo);
+        return productoRepository.findByCodigoAndActivoTrue(buscado)
+                .map(ProductoResponse::desde)
+                .orElseThrow(() -> new RecursoNoEncontradoException(
+                        "No existe un producto activo con el código '" + buscado + "'"));
     }
 
     @Transactional(readOnly = true)

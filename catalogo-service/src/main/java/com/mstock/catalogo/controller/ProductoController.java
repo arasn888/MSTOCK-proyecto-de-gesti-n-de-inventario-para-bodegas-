@@ -34,6 +34,12 @@ public class ProductoController {
         return productoService.listar(nombre, categoriaId);
     }
 
+    /** Búsqueda exacta por código de barras o interno (solo productos activos). */
+    @GetMapping("/codigo/{codigo}")
+    public ProductoResponse obtenerPorCodigo(@PathVariable String codigo) {
+        return productoService.obtenerPorCodigo(codigo);
+    }
+
     @GetMapping("/{id}")
     public ProductoResponse obtener(@PathVariable Long id) {
         return productoService.obtener(id);

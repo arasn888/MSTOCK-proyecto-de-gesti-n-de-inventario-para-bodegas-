@@ -11,9 +11,11 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { finalize } from 'rxjs';
 import { ProductosApi } from '../../core/api/productos.api';
 import { Categoria, Producto, ProductoRequest, Proveedor } from '../../core/models/catalogo';
@@ -48,6 +50,8 @@ const ventaNoMenorQueCompra: ValidatorFn = (grupo: AbstractControl): ValidationE
     MatSelectModule,
     MatSlideToggleModule,
     MatButtonModule,
+    MatIconModule,
+    MatTooltipModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -58,7 +62,13 @@ const ventaNoMenorQueCompra: ValidatorFn = (grupo: AbstractControl): ValidationE
           <mat-form-field appearance="outline">
             <mat-label>Código</mat-label>
             <input matInput formControlName="codigo" maxlength="30" autofocus />
-            <mat-hint>Se guarda en mayúsculas</mat-hint>
+            @if (!producto) {
+              <button mat-icon-button matSuffix type="button" matTooltip="Generar un código"
+                      aria-label="Generar un código" (click)="generarCodigo()">
+                <mat-icon>auto_fix_high</mat-icon>
+              </button>
+            }
+            <mat-hint>Escanéalo con el lector o genera uno</mat-hint>
             @if (form.controls.codigo.hasError('required')) {
               <mat-error>El código es obligatorio</mat-error>
             } @else if (form.controls.codigo.hasError('pattern')) {
@@ -197,6 +207,12 @@ export class ProductoForm {
       ? precioVenta - precioCompra
       : null;
   });
+
+  /** Código interno para productos sin código de barras. El servidor rechaza si ya existe. */
+  protected generarCodigo(): void {
+    this.form.controls.codigo.setValue('PRD-' + Date.now().toString(36).toUpperCase());
+    this.form.controls.codigo.markAsDirty();
+  }
 
   protected guardar(): void {
     if (this.form.invalid || this.guardando()) {
