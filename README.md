@@ -64,6 +64,16 @@ Primero el stock y luego el estado: si algo falla en medio la venta sigue `COMPL
 Anular una venta ya anulada devuelve su estado actual (200) sin tocar el inventario. Las ventas anteriores al control de
 operaciones (sin id) se anulan devolviendo por lista de productos con la clave fija `ANUL-<id>`.
 
+## CORS (frontend Angular)
+Solo el gateway lo configura (los servicios internos no reciben tráfico del navegador). Está en la cadena de seguridad, antes de la
+autenticación, porque el preflight `OPTIONS` del navegador no lleva token y de otro modo recibiría 401.
+- Orígenes permitidos: `mstock.cors.allowed-origins` (variable de entorno `CORS_ALLOWED_ORIGINS`, separados por coma). Por defecto
+  `http://localhost:4200` y `http://127.0.0.1:4200`. No admite `*`: el gateway no arranca si está vacío o lo contiene.
+- Métodos `GET, POST, PUT, DELETE, OPTIONS`; cabeceras `Authorization, Content-Type, Accept`; sin credenciales (el JWT va en la
+  cabecera, no en cookies). Expone `Content-Disposition` (nombre de la boleta y del kardex descargados) y `Location`.
+- Solo aplica a `/api/**`. En producción, pon el dominio real del frontend en `CORS_ALLOWED_ORIGINS`.
+- Angular debe llamar siempre al gateway (puerto 8080), nunca directo a los servicios.
+
 ## Reportes (ventas-service)
 Solo cuentan las ventas `COMPLETADAS`; las anuladas se informan aparte. Rango de fechas por día (ambos incluidos), sin fechas = hoy.
 - `GET /api/reportes/dashboard?desde=&hasta=&top=` (solo ADMIN): ventas (cantidad, total, ticket promedio), ganancia, anuladas y
@@ -97,11 +107,16 @@ Toda petición del frontend entra por `http://localhost:8080`; los puertos de ca
     .\gradlew.bat test
     .\gradlew.bat :ventas-service:test
 Pruebas de la API: importar en Postman las colecciones de `docs/postman/` y ejecutarlas con el Runner
-(`MSTOCK-gateway` prueba todo por el puerto 8080; `MSTOCK-anulacion` prueba la anulación y la idempotencia del inventario; `MSTOCK-reportes` prueba el dashboard y el cierre de caja; `MSTOCK-boleta-kardex` prueba la boleta PDF y el kardex CSV).
+(`MSTOCK-gateway` prueba todo por el puerto 8080; `MSTOCK-anulacion` prueba la anulación y la idempotencia del inventario; `MSTOCK-reportes` prueba el dashboard y el cierre de caja; `MSTOCK-boleta-kardex` prueba la boleta PDF y el kardex CSV; `MSTOCK-cors` prueba el preflight y las cabeceras CORS contra el gateway).
 La carpeta de resiliencia de cada colección es manual (requiere apagar un servicio).
 
+## Frontend (Angular)
+En `frontend/` (ver `frontend/README.md`): Angular 22 con Angular Material, consumiendo todos los servicios solo a través del
+gateway. Ya tiene la capa de datos completa (modelos y servicios de API de los seis servicios), el login con JWT, el interceptor,
+los guards por rol y el layout con el menú según el rol. Las pantallas de cada módulo se construyen por entregas.
+
 ## Pendiente
-CORS en el gateway (debe exponer `Content-Disposition` para las descargas),
-Angular, Docker/Kubernetes y observabilidad. Mejoras anotadas: outbox para no perder eventos (compras y ventas), usar la
+
+Pantallas de Angular por módulo, Docker/Kubernetes y observabilidad. Mejoras anotadas: outbox para no perder eventos (compras y ventas), usar la
 cuenta de servicio también en el descuento de stock (hoy va con el token del cajero) y una clave de idempotencia enviada
 por el cliente para que un doble clic en "Vender" no cree dos ventas.

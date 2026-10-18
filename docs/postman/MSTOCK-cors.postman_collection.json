@@ -1,0 +1,509 @@
+{
+  "info": {
+    "name": "MSTOCK CORS (gateway)",
+    "description": "Necesita encendidos: eureka, config-server, auth, ventas, catalogo e inventario y el api-gateway (puerto 8080). Postman permite poner la cabecera Origin a mano en la app de escritorio.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1 Preflight (OPTIONS, sin token, como lo manda el navegador)",
+      "item": [
+        {
+          "name": "C01 Origen permitido: 200 con los permisos, sin pedir token",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "http://localhost:4200"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "POST"
+              },
+              {
+                "key": "Access-Control-Request-Headers",
+                "value": "authorization,content-type"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/ventas",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 (no 401: el preflight no lleva token)\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Allow-Origin es el de Angular\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Origin\")).to.eql(\"http://localhost:4200\"));",
+                  "pm.test(\"Permite POST\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Methods\")).to.include(\"POST\"));",
+                  "pm.test(\"Permite Authorization\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Headers\").toLowerCase()).to.include(\"authorization\"));",
+                  "pm.test(\"Cachea el preflight 1 hora\", () => pm.expect(pm.response.headers.get(\"Access-Control-Max-Age\")).to.eql(\"3600\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C02 Preflight de PUT y DELETE tambien se permiten",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "http://localhost:4200"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "DELETE"
+              },
+              {
+                "key": "Access-Control-Request-Headers",
+                "value": "authorization"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/productos/1",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "1"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Permite DELETE\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Methods\")).to.include(\"DELETE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C03 [Error] Origen no permitido -> 403",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "http://malo.example"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "GET"
+              },
+              {
+                "key": "Access-Control-Request-Headers",
+                "value": "authorization"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/ventas",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"No hay Allow-Origin\", () => pm.expect(pm.response.headers.has(\"Access-Control-Allow-Origin\")).to.be.false);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C04 [Error] Cabecera no permitida -> 403",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "http://localhost:4200"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "GET"
+              },
+              {
+                "key": "Access-Control-Request-Headers",
+                "value": "x-secreto"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/ventas",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C05 [Error] Metodo no permitido (PATCH) -> 403",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "http://localhost:4200"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "PATCH"
+              },
+              {
+                "key": "Access-Control-Request-Headers",
+                "value": "authorization"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/ventas",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Peticiones reales con Origin",
+      "item": [
+        {
+          "name": "R01 Login desde Angular: la respuesta trae Allow-Origin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "http://localhost:4200"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/auth/login",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Admin123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Allow-Origin\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Origin\")).to.eql(\"http://localhost:4200\"));",
+                  "pm.collectionVariables.set(\"tokenAdmin\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R02 GET autenticado: Allow-Origin y expone Content-Disposition",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "http://localhost:4200"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/ventas",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Allow-Origin\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Origin\")).to.eql(\"http://localhost:4200\"));",
+                  "pm.test(\"Expone Content-Disposition (descargas)\", () => pm.expect(pm.response.headers.get(\"Access-Control-Expose-Headers\")).to.include(\"Content-Disposition\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R03 Un 401 tambien lleva Allow-Origin (si no, Angular no puede leer el error)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "http://localhost:4200"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/ventas",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Allow-Origin\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Origin\")).to.eql(\"http://localhost:4200\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R04 [Error] Peticion desde un origen no permitido -> 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "http://malo.example"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/ventas",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R05 Sin Origin (Postman, curl, servicios) sigue funcionando normal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/ventas",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Sin cabeceras CORS\", () => pm.expect(pm.response.headers.has(\"Access-Control-Allow-Origin\")).to.be.false);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "tokenAdmin",
+      "value": ""
+    },
+    {
+      "key": "gatewayUrl",
+      "value": "http://localhost:8080"
+    }
+  ]
+}
