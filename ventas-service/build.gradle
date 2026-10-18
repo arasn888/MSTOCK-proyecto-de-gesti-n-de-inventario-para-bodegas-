@@ -27,6 +27,9 @@ dependencies {
     implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.3.0'
     implementation 'io.github.resilience4j:resilience4j-retry:2.3.0'
 
+    // Boleta en PDF
+    implementation 'com.github.librepdf:openpdf:2.0.3'
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

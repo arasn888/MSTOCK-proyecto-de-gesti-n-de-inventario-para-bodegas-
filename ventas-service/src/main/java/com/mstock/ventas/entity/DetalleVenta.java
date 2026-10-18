@@ -51,4 +51,8 @@ public class DetalleVenta {
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal subtotal;
+
+    /** Costo del producto al vender; null en ventas anteriores al reporte de ganancias. No se expone en la API. */
+    @Column(name = "costo_unitario", precision = 10, scale = 2)
+    private BigDecimal costoUnitario;
 }

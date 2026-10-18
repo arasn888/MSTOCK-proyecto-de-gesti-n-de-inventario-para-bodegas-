@@ -57,6 +57,9 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // Exportar el kardex es trabajo de almacén: el cajero no lo necesita.
+                        .requestMatchers(HttpMethod.GET, "/api/inventario/*/kardex/csv")
+                                .hasAnyRole("ADMIN", "ALMACENERO")
                         .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/inventario/salidas",
                                 "/api/inventario/salidas/lote")

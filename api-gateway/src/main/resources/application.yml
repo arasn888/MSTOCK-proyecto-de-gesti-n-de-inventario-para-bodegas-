@@ -44,7 +44,7 @@ spring:
             - id: ventas
               uri: lb://ventas-service
               predicates:
-                - Path=/api/ventas/**,/api/clientes/**
+                - Path=/api/ventas/**,/api/clientes/**,/api/reportes/**
               filters:
                 - name: CircuitBreaker
                   args:

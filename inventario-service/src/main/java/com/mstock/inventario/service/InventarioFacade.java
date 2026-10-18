@@ -11,6 +11,8 @@ import com.mstock.inventario.exception.ReglaNegocioException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -59,6 +61,17 @@ public class InventarioFacade {
     /** Deshace por id de operación lo que se descontó realmente. No consulta el catálogo (ver registrarReversion). */
     public List<MovimientoResponse> revertirOperacion(String operacionId, String motivo, String usuario) {
         return inventario.revertirOperacion(operacionId, motivo, usuario);
+    }
+
+    /**
+     * Kardex del producto en CSV. Consulta el catálogo para poner código y nombre en el archivo (si el producto no
+     * existe responde 404, y si el catálogo no responde, 503). Sirve también para productos inactivos.
+     */
+    public KardexCsv.Archivo exportarKardex(Long productoId, String token) {
+        ProductoCatalogo producto = catalogo.consultarProducto(productoId, token);
+        List<MovimientoResponse> movimientos = new ArrayList<>(inventario.kardex(productoId));
+        Collections.reverse(movimientos); // el kardex del servicio viene del más reciente al más antiguo
+        return KardexCsv.generar(producto, movimientos);
     }
 
     private void validarProducto(Long productoId, String token) {

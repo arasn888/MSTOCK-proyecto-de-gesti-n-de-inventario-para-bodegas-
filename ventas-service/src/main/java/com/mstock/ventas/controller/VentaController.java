@@ -4,10 +4,14 @@ import com.mstock.ventas.dto.AnulacionRequest;
 import com.mstock.ventas.dto.VentaRequest;
 import com.mstock.ventas.dto.VentaResponse;
 import com.mstock.ventas.dto.VentaResumen;
+import com.mstock.ventas.service.BoletaPdf;
 import com.mstock.ventas.service.VentaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -29,6 +33,7 @@ import java.util.List;
 public class VentaController {
 
     private final VentaService ventaService;
+    private final BoletaPdf boletaPdf;
 
     @PostMapping
     public ResponseEntity<VentaResponse> registrar(@Valid @RequestBody VentaRequest request,
@@ -50,6 +55,17 @@ public class VentaController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
         return ventaService.listar(desde, hasta);
+    }
+
+    /** Boleta de la venta en PDF (se abre en el navegador). Cualquier usuario autenticado, como el detalle de la venta. */
+    @GetMapping("/{id}/boleta")
+    public ResponseEntity<byte[]> boleta(@PathVariable Long id) {
+        VentaResponse venta = ventaService.obtener(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline().filename("boleta-" + venta.numero() + ".pdf").build().toString())
+                .body(boletaPdf.generar(venta));
     }
 
     @GetMapping("/{id}")

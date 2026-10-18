@@ -64,10 +64,29 @@ Primero el stock y luego el estado: si algo falla en medio la venta sigue `COMPL
 Anular una venta ya anulada devuelve su estado actual (200) sin tocar el inventario. Las ventas anteriores al control de
 operaciones (sin id) se anulan devolviendo por lista de productos con la clave fija `ANUL-<id>`.
 
+## Reportes (ventas-service)
+Solo cuentan las ventas `COMPLETADAS`; las anuladas se informan aparte. Rango de fechas por día (ambos incluidos), sin fechas = hoy.
+- `GET /api/reportes/dashboard?desde=&hasta=&top=` (solo ADMIN): ventas (cantidad, total, ticket promedio), ganancia, anuladas y
+  los `top` productos más vendidos (por defecto 5, máximo 50; rango máximo 366 días). El **stock crítico** no está aquí: es del
+  inventario, `GET /api/inventario/alertas`.
+- `GET /api/reportes/cierre-caja?fecha=` (ADMIN y CAJERO): ventas y anulaciones por cajero según la fecha de la venta. El ADMIN
+  ve a todos; un CAJERO solo ve su propia fila.
+- Ganancia = suma de (precio - costo) x cantidad. El **costo se guarda en cada línea al vender** (el catálogo puede cambiar
+  después). Las ventas anteriores a este cambio no tienen costo: no entran en la ganancia y se cuentan en `lineasSinCosto`
+  (si es mayor que 0, la ganancia está subestimada). El costo nunca se muestra en el detalle de la venta que ve el cajero.
+
+## Boleta en PDF y kardex en CSV
+- `GET /api/ventas/{id}/boleta`: boleta simulada en PDF (A6) con negocio, número, fecha, cajero, cliente, productos y total. Las ventas
+  anuladas se imprimen con la marca "VENTA ANULADA" y su motivo. No lleva el costo de los productos. El nombre del negocio sale de
+  `mstock.boleta.negocio` (por defecto `MSTOCK`). La puede pedir cualquier usuario autenticado, igual que el detalle de la venta.
+- `GET /api/inventario/{productoId}/kardex/csv` (ADMIN y ALMACENERO): kardex del producto del más antiguo al más reciente, en CSV UTF-8
+  con BOM (se abre en Excel con las tildes bien). Las comas y comillas se escapan y los motivos que empiezan con `= + - @` se
+  neutralizan para que Excel no los ejecute como fórmula. Si el producto no existe en el catálogo responde 404.
+
 ## API Gateway (puerto 8080)
 Toda petición del frontend entra por `http://localhost:8080`; los puertos de cada servicio quedan solo para desarrollo.
 - Rutas: `/api/auth` y `/api/usuarios` -> auth; `/api/productos`, `/api/categorias` y `/api/proveedores` -> catálogo;
-  `/api/inventario` -> inventario; `/api/ventas` y `/api/clientes` -> ventas; `/api/compras` -> compras; `/api/notificaciones` -> notificaciones. Se resuelven por Eureka (`lb://`).
+  `/api/inventario` -> inventario; `/api/ventas`, `/api/clientes` y `/api/reportes` -> ventas; `/api/compras` -> compras; `/api/notificaciones` -> notificaciones. Se resuelven por Eureka (`lb://`).
 - Seguridad: solo `POST /api/auth/login` y `/actuator/health` son públicos. El gateway rechaza con 401 lo que no traiga
   un JWT válido (misma clave y emisor que auth). Los permisos por rol (403) los siguen decidiendo los servicios,
   que también validan el token: saltarse el gateway no da acceso.
@@ -78,11 +97,11 @@ Toda petición del frontend entra por `http://localhost:8080`; los puertos de ca
     .\gradlew.bat test
     .\gradlew.bat :ventas-service:test
 Pruebas de la API: importar en Postman las colecciones de `docs/postman/` y ejecutarlas con el Runner
-(`MSTOCK-gateway` prueba todo por el puerto 8080; `MSTOCK-anulacion` prueba la anulación y la idempotencia del inventario).
+(`MSTOCK-gateway` prueba todo por el puerto 8080; `MSTOCK-anulacion` prueba la anulación y la idempotencia del inventario; `MSTOCK-reportes` prueba el dashboard y el cierre de caja; `MSTOCK-boleta-kardex` prueba la boleta PDF y el kardex CSV).
 La carpeta de resiliencia de cada colección es manual (requiere apagar un servicio).
 
 ## Pendiente
-Reportes (dashboard, cierre de caja, boleta PDF, kardex exportable; deben excluir las ventas `ANULADA`), CORS en el gateway,
+CORS en el gateway (debe exponer `Content-Disposition` para las descargas),
 Angular, Docker/Kubernetes y observabilidad. Mejoras anotadas: outbox para no perder eventos (compras y ventas), usar la
 cuenta de servicio también en el descuento de stock (hoy va con el token del cajero) y una clave de idempotencia enviada
 por el cliente para que un doble clic en "Vender" no cree dos ventas.

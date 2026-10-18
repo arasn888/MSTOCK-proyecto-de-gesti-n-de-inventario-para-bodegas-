@@ -75,4 +75,25 @@ class VentaRegistroTest {
         org.mockito.Mockito.verify(ventaRepository, org.mockito.Mockito.atLeastOnce()).saveAndFlush(captor.capture());
         assertThat(captor.getAllValues()).allSatisfy(v -> assertThat(v.getOperacionId()).isEqualTo("op-7777-test"));
     }
+
+    @Test
+    @DisplayName("Guarda el costo del producto en cada línea (para calcular ganancias después)")
+    void guardaElCosto() {
+        when(ventaRepository.saveAndFlush(any(Venta.class))).thenAnswer(invocacion -> {
+            Venta v = invocacion.getArgument(0);
+            if (v.getId() == null) {
+                v.setId(9L);
+            }
+            return v;
+        });
+        List<LineaVenta> lineas = List.of(
+                new LineaVenta(new ProductoCatalogo(1L, "ARR-1", "Arroz", new BigDecimal("3.50"),
+                        new BigDecimal("2.10"), true), 2));
+
+        registro.guardar(null, "cajero", "op-9999-test", lineas);
+
+        org.mockito.ArgumentCaptor<Venta> captor = org.mockito.ArgumentCaptor.forClass(Venta.class);
+        org.mockito.Mockito.verify(ventaRepository, org.mockito.Mockito.atLeastOnce()).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getDetalles().get(0).getCostoUnitario()).isEqualByComparingTo("2.10");
+    }
 }

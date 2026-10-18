@@ -63,7 +63,7 @@ class RutasTest {
                 .filter(k -> k.contains("predicates")).map(yml::getProperty).toList());
 
         for (String prefijo : new String[]{"/api/auth", "/api/usuarios", "/api/productos", "/api/categorias",
-                "/api/proveedores", "/api/inventario", "/api/ventas", "/api/clientes", "/api/notificaciones", "/api/compras"}) {
+                "/api/proveedores", "/api/inventario", "/api/ventas", "/api/clientes", "/api/notificaciones", "/api/compras", "/api/reportes"}) {
             assertThat(todas).as("ruta para " + prefijo).contains(prefijo + "/**");
         }
     }

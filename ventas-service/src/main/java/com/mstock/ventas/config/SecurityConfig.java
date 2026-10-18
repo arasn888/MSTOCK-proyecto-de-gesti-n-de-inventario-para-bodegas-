@@ -57,6 +57,9 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // Reportes: antes de la regla general de GET. El dashboard muestra ganancias: solo ADMIN.
+                        .requestMatchers(HttpMethod.GET, "/api/reportes/dashboard").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/reportes/cierre-caja").hasAnyRole("ADMIN", "CAJERO")
                         .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/ventas").hasAnyRole("ADMIN", "CAJERO")
                         // Anular una venta devuelve stock: solo el administrador.

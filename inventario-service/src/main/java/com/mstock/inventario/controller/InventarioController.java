@@ -9,8 +9,12 @@ import com.mstock.inventario.dto.StockMinimoRequest;
 import com.mstock.inventario.dto.StockResponse;
 import com.mstock.inventario.service.InventarioFacade;
 import com.mstock.inventario.service.InventarioService;
+import com.mstock.inventario.service.KardexCsv;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -51,6 +55,17 @@ public class InventarioController {
     @GetMapping("/{productoId}/movimientos")
     public List<MovimientoResponse> kardex(@PathVariable Long productoId) {
         return inventarioService.kardex(productoId);
+    }
+
+    /** Kardex en CSV (se abre en Excel). Solo ADMIN y ALMACENERO (ver SecurityConfig). */
+    @GetMapping("/{productoId}/kardex/csv")
+    public ResponseEntity<byte[]> kardexCsv(@PathVariable Long productoId, Authentication authentication) {
+        KardexCsv.Archivo archivo = inventarioFacade.exportarKardex(productoId, token(authentication));
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "csv", java.nio.charset.StandardCharsets.UTF_8))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(archivo.nombre()).build().toString())
+                .body(archivo.contenido());
     }
 
     @PostMapping("/entradas")

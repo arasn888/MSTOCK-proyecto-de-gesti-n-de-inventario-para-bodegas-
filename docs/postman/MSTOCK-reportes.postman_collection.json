@@ -1,0 +1,1126 @@
+{
+  "info": {
+    "name": "MSTOCK Reportes (dashboard y cierre de caja)",
+    "description": "Necesita encendidos: eureka, config-server, auth, catalogo, inventario y ventas. Ejecuta las carpetas 0 a 3 en orden con el Runner. Las comparaciones usan una linea base, asi que se puede repetir aunque ya haya ventas del dia.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0 Autenticacion",
+      "item": [
+        {
+          "name": "A01 Login admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Admin123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenAdmin\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A02 Crear cajero de prueba",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/usuarios",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cajero_rep\",\n  \"password\": \"Cajero123*\",\n  \"nombres\": \"Prueba\",\n  \"apellidos\": \"Reportes\",\n  \"email\": \"cajero_rep@mstock.com\",\n  \"rol\": \"CAJERO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Creado (201) o ya existente (409)\", () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A03 Login cajero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cajero_rep\",\n  \"password\": \"Cajero123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenCajero\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A04 Crear almacenero de prueba",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/usuarios",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"almacenero_rep\",\n  \"password\": \"Cajero123*\",\n  \"nombres\": \"Prueba\",\n  \"apellidos\": \"Reportes\",\n  \"email\": \"almacenero_rep@mstock.com\",\n  \"rol\": \"ALMACENERO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Creado (201) o ya existente (409)\", () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A05 Login almacenero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"almacenero_rep\",\n  \"password\": \"Cajero123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenAlmacenero\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 Preparacion (producto con costo 2.00, precio 5.00)",
+      "item": [
+        {
+          "name": "P01 Crear producto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"REP-{{$timestamp}}\",\n  \"nombre\": \"Producto reportes\",\n  \"descripcion\": \"Postman reportes\",\n  \"precioCompra\": 2.0,\n  \"precioVenta\": 5.0,\n  \"unidadMedida\": \"UNIDAD\",\n  \"categoriaId\": 1,\n  \"activo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Creado\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"producto1\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P02 Entrada de 50 unidades",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/entradas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "entradas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{producto1}},\n  \"cantidad\": 50,\n  \"motivo\": \"Stock inicial reportes\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P03 Antes: dashboard de hoy (guarda la linea base)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/dashboard?top=50",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "dashboard?top=50"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json().ventas;",
+                  "pm.collectionVariables.set(\"baseCantidad\", v.cantidad);",
+                  "pm.collectionVariables.set(\"baseTotal\", v.total);",
+                  "pm.collectionVariables.set(\"baseGanancia\", v.ganancia);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P04 Venta A: 3 unidades (cajero) -> 15.00, ganancia 9.00",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/ventas",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [ { \"productoId\": {{producto1}}, \"cantidad\": 3 } ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P05 Venta B: 2 unidades (cajero) -> 10.00, ganancia 6.00 (se anulara)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/ventas",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [ { \"productoId\": {{producto1}}, \"cantidad\": 2 } ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Creada\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"ventaId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P06 Anular la venta B (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/ventas/{{ventaId}}/anulacion",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "{{ventaId}}",
+                "anulacion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Prueba de reportes\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Dashboard",
+      "item": [
+        {
+          "name": "D01 Admin: la venta A suma (+1 venta, +15.00, +9.00 de ganancia); la B anulada no",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/dashboard?top=50",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "dashboard?top=50"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"+1 venta\", () => pm.expect(r.ventas.cantidad - Number(pm.collectionVariables.get(\"baseCantidad\"))).to.eql(1));",
+                  "pm.test(\"+15.00 vendido\", () => pm.expect(+(r.ventas.total - Number(pm.collectionVariables.get(\"baseTotal\"))).toFixed(2)).to.eql(15));",
+                  "pm.test(\"+9.00 de ganancia\", () => pm.expect(+(r.ventas.ganancia - Number(pm.collectionVariables.get(\"baseGanancia\"))).toFixed(2)).to.eql(9));",
+                  "pm.test(\"Hay al menos una anulada\", () => pm.expect(r.anuladas.cantidad).to.be.at.least(1));",
+                  "const p = r.masVendidos.find(x => x.productoId == pm.collectionVariables.get(\"producto1\"));",
+                  "pm.test(\"El producto aparece con 3 unidades (la anulada no cuenta)\", () => pm.expect(p.unidadesVendidas).to.eql(3));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D02 Admin: top=1 devuelve una sola fila",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/dashboard?top=1",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "dashboard?top=1"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Una fila\", () => pm.expect(pm.response.json().masVendidos.length).to.be.at.most(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D03 [Error] Rango invertido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/dashboard?desde=2026-10-10&hasta=2026-10-01",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "dashboard?desde=2026-10-10&hasta=2026-10-01"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D04 [Error] top=0 -> 400",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/dashboard?top=0",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "dashboard?top=0"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D05 [Error] El cajero no ve el dashboard -> 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/dashboard",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "dashboard"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "D06 [Error] Sin token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/dashboard",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "dashboard"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 Cierre de caja",
+      "item": [
+        {
+          "name": "C01 Admin ve todos los cajeros, incluido cajero_rep con su anulada",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/cierre-caja",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "cierre-caja"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const c = r.cajeros.find(x => x.usuario === \"cajero_rep\");",
+                  "pm.test(\"cajero_rep tiene ventas y una anulada de 10.00\", () => { pm.expect(c.cantidadVentas).to.be.at.least(1); pm.expect(c.cantidadAnuladas).to.be.at.least(1); pm.expect(c.totalAnulado).to.be.at.least(10); });",
+                  "pm.test(\"Los totales suman a los cajeros\", () => pm.expect(+r.cajeros.reduce((a, x) => a + x.totalVendido, 0).toFixed(2)).to.eql(r.totales.totalVendido));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C02 El cajero ve solo su propio cierre",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/cierre-caja",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "cierre-caja"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Solo cajero_rep\", () => pm.expect(pm.response.json().cajeros.every(x => x.usuario === \"cajero_rep\")).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C03 Fecha sin ventas: lista vacia y totales en cero",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/cierre-caja?fecha=2000-01-01",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "cierre-caja?fecha=2000-01-01"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Vacio\", () => { const r = pm.response.json(); pm.expect(r.cajeros.length).to.eql(0); pm.expect(r.totales.totalVendido).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C04 [Error] Fecha invalida -> 400",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/cierre-caja?fecha=ayer",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "cierre-caja?fecha=ayer"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "C05 [Error] El almacenero no ve el cierre -> 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/reportes/cierre-caja",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "cierre-caja"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAlmacenero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "tokenAdmin",
+      "value": ""
+    },
+    {
+      "key": "tokenCajero",
+      "value": ""
+    },
+    {
+      "key": "tokenAlmacenero",
+      "value": ""
+    },
+    {
+      "key": "producto1",
+      "value": ""
+    },
+    {
+      "key": "ventaId",
+      "value": ""
+    },
+    {
+      "key": "baseCantidad",
+      "value": ""
+    },
+    {
+      "key": "baseTotal",
+      "value": ""
+    },
+    {
+      "key": "baseGanancia",
+      "value": ""
+    },
+    {
+      "key": "authUrl",
+      "value": "http://localhost:9001"
+    },
+    {
+      "key": "catalogoUrl",
+      "value": "http://localhost:9002"
+    },
+    {
+      "key": "inventarioUrl",
+      "value": "http://localhost:9003"
+    },
+    {
+      "key": "ventasUrl",
+      "value": "http://localhost:9004"
+    }
+  ]
+}

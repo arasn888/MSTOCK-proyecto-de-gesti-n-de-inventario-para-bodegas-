@@ -43,6 +43,7 @@ public class VentaRegistro {
                     .nombre(linea.producto().nombre())
                     .cantidad(linea.cantidad())
                     .precioUnitario(precio)
+                    .costoUnitario(linea.producto().precioCompra())
                     .subtotal(subtotal)
                     .build());
             total = total.add(subtotal);
