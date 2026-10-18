@@ -43,6 +43,28 @@ Se publica al confirmarse la transacción que guarda la venta. `cantidadItems` e
       "cantidadItems": 3
     }
 
+### `compra.registrada` (lo publica compras-service)
+
+Se publica al confirmarse la compra (estado `PENDIENTE`). Inventario la consume y suma el stock.
+
+    {
+      "compraId": 7,
+      "proveedorId": 1,
+      "usuario": "almacenero",
+      "items": [ { "productoId": 10, "productoNombre": "Arroz", "cantidad": 4, "costoUnitario": 2.50 } ]
+    }
+
+### `compra.aplicada` y `compra.rechazada` (las publica inventario-service)
+
+Es la respuesta a `compra.registrada`; compras-service las consume en la cola `compras.resultado`.
+
+- `compra.aplicada`: el stock ya se sumó (se envía tras el commit). La compra pasa a `RECIBIDA`. Si llega un `compra.registrada` repetido, se vuelve a enviar para que el aviso perdido no deje la compra pendiente.
+- `compra.rechazada`: el evento es inválido (sin productos, cantidad inválida) o se agotaron los 3 reintentos. Nada se sumó (la transacción se revirtió). La compra pasa a `RECHAZADA` con `motivoRechazo`.
+
+      { "compraId": 7, "motivo": null }
+
+compras-service solo cambia una compra que sigue `PENDIENTE`, así que un resultado repetido o tardío se ignora. Sus mensajes fallidos van a `compras.dlq`.
+
 ## Reglas del consumidor
 
 - Las alertas `stock.bajo` no se duplican: si el producto ya tiene una alerta sin leer, el evento se ignora.

@@ -6,6 +6,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import com.mstock.inventario.event.CompraResultadoEvent;
 import com.mstock.inventario.event.StockBajoEvent;
 
 /**
@@ -25,6 +26,15 @@ public class EventosPublisher {
         publicar(RabbitConfig.RK_STOCK_BAJO, new StockBajoEvent(productoId, null, cantidad, stockMinimo));
     }
 
+    /** El stock de la compra ya se sumó (se publica al confirmarse la transacción). */
+    public void compraAplicada(Long compraId) {
+        publicar(RabbitConfig.RK_COMPRA_APLICADA, new CompraResultadoEvent(compraId, null));
+    }
+
+    /** La compra no se pudo aplicar; compras-service la marca RECHAZADA con este motivo. */
+    public void compraRechazada(Long compraId, String motivo) {
+        publicar(RabbitConfig.RK_COMPRA_RECHAZADA, new CompraResultadoEvent(compraId, motivo));
+    }
 
     private void publicar(String routingKey, Object evento) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {

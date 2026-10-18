@@ -32,6 +32,11 @@ spring:
           initial-interval: 1s
           multiplier: 2
 
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:9761/eureka/
+
 mstock:
   jwt:
     secret: ${JWT_SECRET}

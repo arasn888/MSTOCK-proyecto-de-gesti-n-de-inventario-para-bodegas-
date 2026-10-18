@@ -14,8 +14,6 @@ spring:
             connect-timeout: 2000
             response-timeout: 35s
           routes:
-            # Cada ruta: lb:// resuelve el servicio en Eureka; el filtro CircuitBreaker corta las
-            # llamadas a un servicio caído y responde con /fallback/<servicio> (503 en JSON).
             - id: auth
               uri: lb://auth-service
               predicates:
@@ -52,6 +50,15 @@ spring:
                   args:
                     name: ventas
                     fallbackUri: forward:/fallback/ventas
+            - id: compras
+              uri: lb://compras-service
+              predicates:
+                - Path=/api/compras/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: compras
+                    fallbackUri: forward:/fallback/compras
             - id: notificaciones
               uri: lb://notificaciones-service
               predicates:

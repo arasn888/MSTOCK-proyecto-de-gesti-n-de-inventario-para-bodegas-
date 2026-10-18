@@ -23,6 +23,15 @@ spring:
     password: ${RABBITMQ_PASSWORD:}
     # Si RabbitMQ está caído, publicar un evento no debe dejar colgada la operación del usuario.
     connection-timeout: 2s
+    listener:
+      simple:
+        # Una compra que falla se reintenta 3 veces y luego va a inventario.dlq (no se reintenta para siempre).
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1s
+          multiplier: 2
   cloud:
     openfeign:
       client:

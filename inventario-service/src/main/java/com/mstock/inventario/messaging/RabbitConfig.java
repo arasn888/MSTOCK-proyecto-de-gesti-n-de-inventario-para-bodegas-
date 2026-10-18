@@ -12,6 +12,8 @@ public class RabbitConfig {
     public static final String EXCHANGE_EVENTOS = "mstock.eventos";
     public static final String RK_STOCK_BAJO = "stock.bajo";
     public static final String RK_VENTA_REGISTRADA = "venta.registrada";
+    public static final String RK_COMPRA_APLICADA = "compra.aplicada";
+    public static final String RK_COMPRA_RECHAZADA = "compra.rechazada";
 
     /** Mismo exchange (topic, durable) que declara notificaciones-service: declararlo es idempotente. */
     @Bean

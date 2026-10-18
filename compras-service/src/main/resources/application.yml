@@ -1,0 +1,49 @@
+server:
+  port: 9005
+
+spring:
+  application:
+    name: compras-service
+  config:
+    import: optional:configserver:http://localhost:9888
+  datasource:
+    url: jdbc:mysql://localhost:3307/mstock_compras?useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USER:mstock_user}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  flyway:
+    enabled: true
+  rabbitmq:
+    host: localhost
+    port: 5673
+    username: ${RABBITMQ_USER:mstock}
+    password: ${RABBITMQ_PASSWORD:}
+    connection-timeout: 2s
+    listener:
+      simple:
+        # Un resultado que falla se reintenta 3 veces y luego va a compras.dlq.
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1s
+          multiplier: 2
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 2000
+            read-timeout: 4000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:9761/eureka/
+
+mstock:
+  jwt:
+    secret: ${JWT_SECRET}
