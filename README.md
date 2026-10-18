@@ -20,8 +20,8 @@ Java 21, Spring Boot 4.1.1, Spring Cloud 2025.1.2, Gradle, MySQL 8.4 (Docker), F
 | api-gateway | 8080 | - | Entrada única: valida el JWT y enruta a los servicios (Eureka); circuit breaker por ruta |
 
 Roles: `ADMIN`, `ALMACENERO`, `CAJERO`. Todos los servicios validan el mismo JWT.
-Entre servicios, ventas usa un token de corta duración con rol interno `SERVICIO` para devolver stock al compensar una venta (`POST /api/inventario/reversiones` solo lo aceptan `SERVICIO` y `ADMIN`).
-RabbitMQ (docker compose, puerto 5673, panel 15673): inventario publica `stock.bajo`, ventas `venta.registrada` y compras `compra.registrada` (el inventario la consume, suma el stock y responde `compra.aplicada` o `compra.rechazada`, que pasa la compra a RECIBIDA o RECHAZADA; si falla 3 veces va a `inventario.dlq`); ver `docs/eventos-rabbitmq.md` y `docs/compras-service.md`. Si RabbitMQ está caído, la operación igual se completa y el evento se pierde (queda un aviso en el log).
+Entre servicios, ventas usa un token de corta duración con rol interno `SERVICIO` para devolver stock al compensar o anular una venta (`POST /api/inventario/reversiones` y `POST /api/inventario/operaciones/{id}/reversion` solo los aceptan `SERVICIO` y `ADMIN`).
+RabbitMQ (docker compose, puerto 5673, panel 15673): inventario publica `stock.bajo`, ventas `venta.registrada` y `venta.anulada` y compras `compra.registrada` (el inventario la consume, suma el stock y responde `compra.aplicada` o `compra.rechazada`, que pasa la compra a RECIBIDA o RECHAZADA; si falla 3 veces va a `inventario.dlq`); ver `docs/eventos-rabbitmq.md` y `docs/compras-service.md`. Si RabbitMQ está caído, la operación igual se completa y el evento se pierde (queda un aviso en el log).
 
 ## Preparación
 1. Copiar `.env.example` como `.env` y completar las claves (`.env` no se sube a Git).
@@ -45,11 +45,24 @@ solo para desarrollo).
 ## Flujo de una venta
 `POST /api/ventas` en ventas-service:
 1. Toma el precio vigente de cada producto del catálogo (Feign; el cliente nunca decide el precio).
-2. Descuenta el stock en el inventario con una sola operación todo-o-nada (Feign).
-3. Guarda la venta y su detalle. Si guardar falla después de descontar, devuelve el stock (compensación).
+2. Genera un **id de operación** (UUID) y descuenta el stock en el inventario con una sola operación todo-o-nada (Feign).
+3. Guarda la venta y su detalle (con ese id de operación). Si guardar falla después de descontar, deshace el descuento por id (compensación).
 
-Resiliencia: el catálogo se reintenta (lectura) y tiene circuit breaker; el inventario solo tiene circuit
-breaker, porque descontar stock no debe repetirse. Si un servicio está caído, la venta se rechaza con 503.
+Resiliencia: el catálogo se reintenta (lectura) y tiene circuit breaker. El inventario también tiene circuit breaker y
+se reintenta **una vez** (solo ante timeout o 5xx) porque el descuento es idempotente: el inventario guarda el id de
+operación y, si llega repetido, devuelve el resultado de la primera vez sin descontar otra vez. Si tras reintentar no se
+sabe si descontó, la venta se rechaza con 503 y se deshace por id (no devuelve nada si el descuento nunca se aplicó, y
+si el descuento llega tarde con ese id, el inventario lo rechaza). Si el servicio está caído (circuito abierto), 503.
+
+## Anulación de ventas
+`POST /api/ventas/{id}/anulacion` con `{ "motivo": "..." }` (solo ADMIN):
+1. Devuelve el stock por id de operación (`POST /api/inventario/operaciones/{id}/reversion`, cuenta de servicio): devuelve
+   exactamente lo que se descontó y es idempotente.
+2. Marca la venta `ANULADA` (con motivo, usuario y fecha) con un `UPDATE ... WHERE estado = 'COMPLETADA'`, y publica `venta.anulada`.
+
+Primero el stock y luego el estado: si algo falla en medio la venta sigue `COMPLETADA` y se puede reintentar sin riesgo.
+Anular una venta ya anulada devuelve su estado actual (200) sin tocar el inventario. Las ventas anteriores al control de
+operaciones (sin id) se anulan devolviendo por lista de productos con la clave fija `ANUL-<id>`.
 
 ## API Gateway (puerto 8080)
 Toda petición del frontend entra por `http://localhost:8080`; los puertos de cada servicio quedan solo para desarrollo.
@@ -65,9 +78,11 @@ Toda petición del frontend entra por `http://localhost:8080`; los puertos de ca
     .\gradlew.bat test
     .\gradlew.bat :ventas-service:test
 Pruebas de la API: importar en Postman las colecciones de `docs/postman/` y ejecutarlas con el Runner
-(`MSTOCK-gateway` prueba todo por el puerto 8080).
+(`MSTOCK-gateway` prueba todo por el puerto 8080; `MSTOCK-anulacion` prueba la anulación y la idempotencia del inventario).
 La carpeta de resiliencia de cada colección es manual (requiere apagar un servicio).
 
 ## Pendiente
-anulación de ventas, outbox para no perder eventos de compras, Angular, Docker/Kubernetes
-y observabilidad. Mejora anotada: usar la cuenta de servicio también en el descuento de stock (hoy va con el token del cajero) y un patrón outbox para no perder eventos.
+Reportes (dashboard, cierre de caja, boleta PDF, kardex exportable; deben excluir las ventas `ANULADA`), CORS en el gateway,
+Angular, Docker/Kubernetes y observabilidad. Mejoras anotadas: outbox para no perder eventos (compras y ventas), usar la
+cuenta de servicio también en el descuento de stock (hoy va con el token del cajero) y una clave de idempotencia enviada
+por el cliente para que un doble clic en "Vender" no cree dos ventas.

@@ -4,6 +4,7 @@ import com.mstock.inventario.dto.AjusteRequest;
 import com.mstock.inventario.dto.LoteRequest;
 import com.mstock.inventario.dto.MovimientoRequest;
 import com.mstock.inventario.dto.MovimientoResponse;
+import com.mstock.inventario.dto.ReversionOperacionRequest;
 import com.mstock.inventario.dto.StockMinimoRequest;
 import com.mstock.inventario.dto.StockResponse;
 import com.mstock.inventario.service.InventarioFacade;
@@ -78,6 +79,20 @@ public class InventarioController {
         List<MovimientoResponse> movimientos = inventarioFacade
                 .registrarReversion(request, authentication.getName());
         return ResponseEntity.status(201).body(movimientos);
+    }
+
+    /** Deshace una operación por su id (compensación). Idempotente. Solo SERVICIO o ADMIN (ver SecurityConfig). */
+    @PostMapping("/operaciones/{operacionId}/reversion")
+    public ResponseEntity<List<MovimientoResponse>> revertirOperacion(
+            @PathVariable String operacionId,
+            @Valid @RequestBody ReversionOperacionRequest request,
+            Authentication authentication) {
+        if (!operacionId.matches("^[A-Za-z0-9-]{8,60}$")) {
+            throw new com.mstock.inventario.exception.ReglaNegocioException(
+                    "El id de operación debe tener entre 8 y 60 letras, números o guiones");
+        }
+        return ResponseEntity.status(201).body(
+                inventarioFacade.revertirOperacion(operacionId, request.motivo(), authentication.getName()));
     }
 
     @PostMapping("/ajustes")

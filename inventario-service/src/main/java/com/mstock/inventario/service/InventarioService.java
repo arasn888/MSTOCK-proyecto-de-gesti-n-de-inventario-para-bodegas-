@@ -15,6 +15,7 @@ import com.mstock.inventario.exception.ReglaNegocioException;
 import com.mstock.inventario.exception.StockInsuficienteException;
 import com.mstock.inventario.messaging.EventosPublisher;
 import com.mstock.inventario.repository.MovimientoRepository;
+import com.mstock.inventario.repository.Operaciones;
 import com.mstock.inventario.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class InventarioService {
     private final StockRepository stockRepository;
     private final MovimientoRepository movimientoRepository;
     private final EventosPublisher eventos;
+    private final Operaciones operaciones;
 
     @Transactional(readOnly = true)
     public List<StockResponse> listar() {
@@ -64,6 +66,10 @@ public class InventarioService {
 
     @Transactional
     public MovimientoResponse registrarEntrada(MovimientoRequest request, String usuario) {
+        return entrada(request, usuario, null);
+    }
+
+    private MovimientoResponse entrada(MovimientoRequest request, String usuario, String operacionId) {
         Stock stock = stockRepository.buscarParaActualizar(request.productoId())
                 .orElseGet(() -> crearStock(request.productoId()));
 
@@ -72,11 +78,15 @@ public class InventarioService {
             throw new ReglaNegocioException("El stock no puede superar " + STOCK_MAXIMO + " unidades");
         }
         return aplicar(stock, TipoMovimiento.ENTRADA, request.cantidad(), (int) nuevo,
-                request.motivo(), usuario);
+                request.motivo(), usuario, operacionId);
     }
 
     @Transactional
     public MovimientoResponse registrarSalida(MovimientoRequest request, String usuario) {
+        return salida(request, usuario, null);
+    }
+
+    private MovimientoResponse salida(MovimientoRequest request, String usuario, String operacionId) {
         Stock stock = stockRepository.buscarParaActualizar(request.productoId())
                 .orElseThrow(() -> new StockInsuficienteException(0, request.cantidad()));
 
@@ -84,33 +94,84 @@ public class InventarioService {
             throw new StockInsuficienteException(stock.getCantidad(), request.cantidad());
         }
         return aplicar(stock, TipoMovimiento.SALIDA, request.cantidad(),
-                stock.getCantidad() - request.cantidad(), request.motivo(), usuario);
+                stock.getCantidad() - request.cantidad(), request.motivo(), usuario, operacionId);
     }
 
     /**
      * Salida de varios productos en una sola transacción: si uno no alcanza, no se descuenta ninguno.
      * Los productos se procesan en orden de id para que dos ventas simultáneas con los mismos
      * productos bloqueen las filas en el mismo orden y no se queden esperándose entre sí (deadlock).
+     *
+     * Si el lote trae operacionId es idempotente: un reintento con el mismo id (p. ej. porque se perdió
+     * la respuesta) no descuenta otra vez, devuelve los movimientos de la primera vez. Si esa operación
+     * ya fue revertida, el descuento tardío se rechaza.
      */
     @Transactional
     public List<MovimientoResponse> registrarSalidaLote(LoteRequest request, String usuario) {
+        String operacionId = request.operacionId();
+        if (operacionId != null) {
+            if (operaciones.existe(Operaciones.PREFIJO_REVERSION + operacionId)) {
+                throw new ReglaNegocioException("La operación " + operacionId + " ya fue cancelada");
+            }
+            if (!operaciones.registrar(operacionId)) {
+                return movimientosDe(operacionId);
+            }
+        }
         List<MovimientoResponse> resultado = new ArrayList<>();
         for (ItemLote item : consolidar(request.items())) {
-            resultado.add(registrarSalida(
-                    new MovimientoRequest(item.productoId(), item.cantidad(), request.motivo()), usuario));
+            resultado.add(salida(
+                    new MovimientoRequest(item.productoId(), item.cantidad(), request.motivo()), usuario, operacionId));
         }
         return resultado;
     }
 
-    /** Devuelve stock de varios productos de una vez (reversión de una venta). Todo o nada. */
+    /**
+     * Devuelve stock de varios productos de una vez. Todo o nada. Si trae operacionId, es idempotente:
+     * repetirla no devuelve el stock dos veces.
+     */
     @Transactional
     public List<MovimientoResponse> registrarEntradaLote(LoteRequest request, String usuario) {
+        String operacionId = request.operacionId();
+        if (operacionId != null && !operaciones.registrar(operacionId)) {
+            return movimientosDe(operacionId);
+        }
         List<MovimientoResponse> resultado = new ArrayList<>();
         for (ItemLote item : consolidar(request.items())) {
-            resultado.add(registrarEntrada(
-                    new MovimientoRequest(item.productoId(), item.cantidad(), request.motivo()), usuario));
+            resultado.add(entrada(
+                    new MovimientoRequest(item.productoId(), item.cantidad(), request.motivo()), usuario, operacionId));
         }
         return resultado;
+    }
+
+    /**
+     * Deshace lo que una operación descontó realmente: devuelve el stock de los movimientos guardados con
+     * ese operacionId, ni más ni menos. Es seguro llamarlo cuando no se sabe si el descuento llegó a
+     * aplicarse (timeout): si no hay movimientos no devuelve nada, y deja una marca para que un descuento
+     * que llegue tarde con ese mismo id sea rechazado. Repetir la reversión no devuelve stock otra vez.
+     */
+    @Transactional
+    public List<MovimientoResponse> revertirOperacion(String operacionId, String motivo, String usuario) {
+        String claveReversion = Operaciones.PREFIJO_REVERSION + operacionId;
+        if (!operaciones.registrar(claveReversion)) {
+            return movimientosDe(claveReversion);
+        }
+        List<Movimiento> originales = movimientoRepository.findByOperacionIdOrderByIdAsc(operacionId).stream()
+                .filter(m -> m.getTipo() == TipoMovimiento.SALIDA)
+                .sorted(java.util.Comparator.comparing(Movimiento::getProductoId))
+                .toList();
+        List<MovimientoResponse> resultado = new ArrayList<>();
+        for (Movimiento original : originales) {
+            resultado.add(entrada(
+                    new MovimientoRequest(original.getProductoId(), original.getCantidad(), motivo),
+                    usuario, claveReversion));
+        }
+        return resultado;
+    }
+
+    private List<MovimientoResponse> movimientosDe(String operacionId) {
+        return movimientoRepository.findByOperacionIdOrderByIdAsc(operacionId).stream()
+                .map(MovimientoResponse::desde)
+                .toList();
     }
 
     /** Une los productos repetidos sumando sus cantidades y los ordena por id. */
@@ -142,7 +203,7 @@ public class InventarioService {
         }
         int diferencia = Math.abs(request.cantidadReal() - stock.getCantidad());
         return aplicar(stock, TipoMovimiento.AJUSTE, diferencia, request.cantidadReal(),
-                request.motivo(), usuario);
+                request.motivo(), usuario, null);
     }
 
     @Transactional
@@ -166,7 +227,7 @@ public class InventarioService {
     }
 
     private MovimientoResponse aplicar(Stock stock, TipoMovimiento tipo, int cantidad,
-                                       int nuevoStock, String motivo, String usuario) {
+                                       int nuevoStock, String motivo, String usuario, String operacionId) {
         int anterior = stock.getCantidad();
         stock.setCantidad(nuevoStock);
         stockRepository.saveAndFlush(stock);
@@ -179,6 +240,7 @@ public class InventarioService {
                 .stockResultante(nuevoStock)
                 .motivo(motivo == null || motivo.isBlank() ? null : motivo.trim())
                 .usuario(usuario)
+                .operacionId(operacionId)
                 .build());
 
         // Aviso de stock bajo: solo cuando el movimiento lo deja en o bajo el mínimo (una entrada no).

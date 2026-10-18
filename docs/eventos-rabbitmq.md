@@ -12,6 +12,7 @@ y si el consumidor está caído, el mensaje espera en la cola.
 | Exchange de mensajes muertos | `mstock.eventos.dlx` | direct, durable |
 | Cola de alertas de stock | `notificaciones.stock-bajo` | durable, enlazada con `stock.bajo` |
 | Cola de ventas | `notificaciones.venta-registrada` | durable, enlazada con `venta.registrada` |
+| Cola de ventas anuladas | `notificaciones.venta-anulada` | durable, enlazada con `venta.anulada` |
 | Cola de mensajes muertos | `notificaciones.dlq` | durable |
 
 Si un mensaje no se puede procesar, se reintenta 3 veces (1 s, 2 s) y después pasa a
@@ -43,6 +44,18 @@ Se publica al confirmarse la transacción que guarda la venta. `cantidadItems` e
       "cantidadItems": 3
     }
 
+### `venta.anulada` (lo publica ventas-service)
+
+Se publica al confirmarse la transacción que marca la venta como `ANULADA` (el stock ya fue devuelto antes). Si dos anulaciones llegan a la vez, solo la que realmente cambió el estado publica el evento. `usuario` es quien anuló, no quien vendió.
+
+    {
+      "ventaId": 120,
+      "numero": "B001-00000120",
+      "usuario": "admin",
+      "total": 25.50,
+      "motivo": "Error de digitación"
+    }
+
 ### `compra.registrada` (lo publica compras-service)
 
 Se publica al confirmarse la compra (estado `PENDIENTE`). Inventario la consume y suma el stock.
@@ -68,6 +81,6 @@ compras-service solo cambia una compra que sigue `PENDIENTE`, así que un result
 ## Reglas del consumidor
 
 - Las alertas `stock.bajo` no se duplican: si el producto ya tiene una alerta sin leer, el evento se ignora.
-- Un evento sin `productoId` o sin `ventaId` es inválido: termina en la cola de mensajes muertos.
+- Un evento sin `productoId` o sin `ventaId` (también en `venta.anulada`) es inválido: termina en la cola de mensajes muertos.
 - El consumidor convierte el JSON a su propia clase usando el tipo del método que escucha,
   por eso el publicador y el consumidor no comparten código.

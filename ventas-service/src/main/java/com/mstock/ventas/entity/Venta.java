@@ -60,6 +60,19 @@ public class Venta {
     @Column(nullable = false, length = 15)
     private EstadoVenta estado = EstadoVenta.COMPLETADA;
 
+    /** Id de la operación de descuento de stock en el inventario (null en ventas antiguas). */
+    @Column(name = "operacion_id", length = 64, unique = true, updatable = false)
+    private String operacionId;
+
+    @Column(name = "motivo_anulacion", length = 200)
+    private String motivoAnulacion;
+
+    @Column(name = "fecha_anulacion")
+    private LocalDateTime fechaAnulacion;
+
+    @Column(name = "usuario_anulacion", length = 50)
+    private String usuarioAnulacion;
+
     @Builder.Default
     @OrderBy("id ASC")
     @OneToMany(mappedBy = "venta", cascade = CascadeType.ALL, orphanRemoval = true)

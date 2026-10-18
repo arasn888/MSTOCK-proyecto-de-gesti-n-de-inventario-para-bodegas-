@@ -9,5 +9,8 @@ public interface MovimientoRepository extends JpaRepository<Movimiento, Long> {
 
     List<Movimiento> findByProductoIdOrderByFechaDescIdDesc(Long productoId);
 
+    /** Movimientos de una operación remota, en el orden en que se aplicaron. */
+    List<Movimiento> findByOperacionIdOrderByIdAsc(String operacionId);
+
     long countByProductoId(Long productoId);
 }

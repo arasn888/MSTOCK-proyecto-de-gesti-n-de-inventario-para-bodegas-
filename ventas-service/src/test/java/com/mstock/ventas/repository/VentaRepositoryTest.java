@@ -111,4 +111,37 @@ class VentaRepositoryTest {
         Venta leida = repository.findById(guardada.getId()).orElseThrow();
         assertThat(leida.getCliente().getId()).isEqualTo(cliente.getId());
     }
+
+    @Test
+    @DisplayName("Anular: pasa a ANULADA con motivo y usuario solo si estaba COMPLETADA")
+    void anularSiCompletada() {
+        Venta guardada = repository.saveAndFlush(venta(null, LocalDateTime.now(), "A-1"));
+        LocalDateTime ahora = LocalDateTime.now();
+
+        int primera = repository.anularSiCompletada(guardada.getId(), "Error de digitación", "admin", ahora);
+        int segunda = repository.anularSiCompletada(guardada.getId(), "Otro motivo", "otro", ahora);
+        em.clear();
+
+        Venta leida = repository.buscarConDetalle(guardada.getId()).orElseThrow();
+        assertThat(primera).isEqualTo(1);
+        assertThat(segunda).isZero();
+        assertThat(leida.getEstado()).isEqualTo(EstadoVenta.ANULADA);
+        // La segunda anulación no pisó los datos de la primera.
+        assertThat(leida.getMotivoAnulacion()).isEqualTo("Error de digitación");
+        assertThat(leida.getUsuarioAnulacion()).isEqualTo("admin");
+        assertThat(leida.getFechaAnulacion()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("El id de operación guarda y no se repite entre ventas")
+    void operacionIdUnico() {
+        Venta a = venta(null, LocalDateTime.now(), "A-1");
+        a.setOperacionId("op-unica-0001");
+        repository.saveAndFlush(a);
+        Venta b = venta(null, LocalDateTime.now(), "B-2");
+        b.setOperacionId("op-unica-0001");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> repository.saveAndFlush(b))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
 }

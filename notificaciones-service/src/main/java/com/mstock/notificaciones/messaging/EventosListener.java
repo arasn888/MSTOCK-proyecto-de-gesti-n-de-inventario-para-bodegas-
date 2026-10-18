@@ -1,6 +1,7 @@
 package com.mstock.notificaciones.messaging;
 
 import com.mstock.notificaciones.event.StockBajoEvent;
+import com.mstock.notificaciones.event.VentaAnuladaEvent;
 import com.mstock.notificaciones.event.VentaRegistradaEvent;
 import com.mstock.notificaciones.service.NotificacionService;
 import lombok.RequiredArgsConstructor;
@@ -21,5 +22,10 @@ public class EventosListener {
     @RabbitListener(queues = RabbitConfig.COLA_VENTAS)
     public void ventaRegistrada(VentaRegistradaEvent evento) {
         notificacionService.registrarVenta(evento);
+    }
+
+    @RabbitListener(queues = RabbitConfig.COLA_VENTAS_ANULADAS)
+    public void ventaAnulada(VentaAnuladaEvent evento) {
+        notificacionService.registrarVentaAnulada(evento);
     }
 }

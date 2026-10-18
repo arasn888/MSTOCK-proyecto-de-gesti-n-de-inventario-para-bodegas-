@@ -4,6 +4,7 @@ import com.mstock.notificaciones.dto.NotificacionResponse;
 import com.mstock.notificaciones.entity.Notificacion;
 import com.mstock.notificaciones.entity.TipoNotificacion;
 import com.mstock.notificaciones.event.StockBajoEvent;
+import com.mstock.notificaciones.event.VentaAnuladaEvent;
 import com.mstock.notificaciones.event.VentaRegistradaEvent;
 import com.mstock.notificaciones.exception.RecursoNoEncontradoException;
 import com.mstock.notificaciones.repository.NotificacionRepository;
@@ -120,5 +121,40 @@ class NotificacionServiceTest {
         assertThatThrownBy(() -> service.eliminar(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class);
         verify(repository, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("Venta anulada: arma el mensaje con número, total, quién la anuló y el motivo")
+    void ventaAnulada() {
+        service.registrarVentaAnulada(new VentaAnuladaEvent(15L, "B001-00000015", "admin",
+                new BigDecimal("25.5"), "Error de digitación"));
+
+        ArgumentCaptor<Notificacion> captor = ArgumentCaptor.forClass(Notificacion.class);
+        verify(repository).save(captor.capture());
+        Notificacion creada = captor.getValue();
+        assertThat(creada.getTipo()).isEqualTo(TipoNotificacion.VENTA_ANULADA);
+        assertThat(creada.getReferenciaId()).isEqualTo(15L);
+        assertThat(creada.getMensaje()).contains("B001-00000015").contains("S/ 25.50")
+                .contains("anulada por admin").contains("Error de digitación");
+    }
+
+    @Test
+    @DisplayName("Venta anulada con motivo larguísimo: el mensaje se recorta a 500 caracteres")
+    void ventaAnuladaMensajeLargo() {
+        service.registrarVentaAnulada(new VentaAnuladaEvent(15L, "B001-00000015", "admin",
+                new BigDecimal("1"), "x".repeat(400) + "y".repeat(400)));
+
+        ArgumentCaptor<Notificacion> captor = ArgumentCaptor.forClass(Notificacion.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getMensaje()).hasSize(500);
+    }
+
+    @Test
+    @DisplayName("Venta anulada sin ventaId: el evento es inválido")
+    void ventaAnuladaSinId() {
+        assertThatThrownBy(() -> service.registrarVentaAnulada(
+                new VentaAnuladaEvent(null, null, "admin", BigDecimal.ONE, "x")))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("ventaId");
+        verify(repository, never()).save(any(Notificacion.class));
     }
 }

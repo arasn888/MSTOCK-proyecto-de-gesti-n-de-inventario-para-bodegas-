@@ -101,4 +101,21 @@ class MovimientoRepositoryTest {
 
         assertThat(repository.findById(guardado.getId())).isEmpty();
     }
+
+    @Test
+    @DisplayName("Buscar por operación: devuelve solo los movimientos de esa operación, en orden")
+    void buscarPorOperacion() {
+        Movimiento a = movimiento(1L, TipoMovimiento.SALIDA, 3, 10, 7, LocalDateTime.now());
+        a.setOperacionId("op-0001-test");
+        Movimiento b = movimiento(2L, TipoMovimiento.SALIDA, 2, 5, 3, LocalDateTime.now());
+        b.setOperacionId("op-0001-test");
+        Movimiento otra = movimiento(1L, TipoMovimiento.SALIDA, 1, 7, 6, LocalDateTime.now());
+        otra.setOperacionId("op-0002-test");
+        repository.saveAll(List.of(a, b, otra));
+
+        List<Movimiento> encontrados = repository.findByOperacionIdOrderByIdAsc("op-0001-test");
+
+        assertThat(encontrados).extracting(Movimiento::getProductoId).containsExactly(1L, 2L);
+        assertThat(repository.findByOperacionIdOrderByIdAsc("no-existe-xx")).isEmpty();
+    }
 }

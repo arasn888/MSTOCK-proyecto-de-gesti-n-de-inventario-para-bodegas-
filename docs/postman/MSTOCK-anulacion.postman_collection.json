@@ -1,0 +1,1377 @@
+{
+  "info": {
+    "name": "MSTOCK Anulacion e idempotencia",
+    "description": "Necesita encendidos: eureka, config-server, auth, catalogo, inventario y ventas (y RabbitMQ para los eventos). Ejecuta las carpetas 0 a 3 en orden con el Runner.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0 Autenticacion",
+      "item": [
+        {
+          "name": "A01 Login admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Admin123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenAdmin\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A02 Crear cajero de prueba",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/usuarios",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cajero_anul\",\n  \"password\": \"Cajero123*\",\n  \"nombres\": \"Prueba\",\n  \"apellidos\": \"Anulacion\",\n  \"email\": \"cajero_anul@mstock.com\",\n  \"rol\": \"CAJERO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Creado (201) o ya existente (409)\", () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A03 Login cajero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": [
+                "{{authUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cajero_anul\",\n  \"password\": \"Cajero123*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenCajero\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 Preparacion",
+      "item": [
+        {
+          "name": "P01 Crear producto (precio 3.50)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{catalogoUrl}}/api/productos",
+              "host": [
+                "{{catalogoUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"ANU-{{$timestamp}}\",\n  \"nombre\": \"Producto anulacion\",\n  \"descripcion\": \"Postman anulacion\",\n  \"precioCompra\": 1.0,\n  \"precioVenta\": 3.5,\n  \"unidadMedida\": \"UNIDAD\",\n  \"categoriaId\": 1,\n  \"activo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Creado\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"producto1\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P02 Entrada de 10 unidades (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/entradas",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "entradas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": {{producto1}},\n  \"cantidad\": 10,\n  \"motivo\": \"Stock inicial anulacion\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P03 Venta de 4 unidades (cajero) -> total 14.00",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/ventas",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [ { \"productoId\": {{producto1}}, \"cantidad\": 4 } ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Creada\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Estado COMPLETADA\", () => pm.expect(pm.response.json().estado).to.eql(\"COMPLETADA\"));",
+                  "pm.collectionVariables.set(\"ventaId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "P04 El stock quedo en 6",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{producto1}}",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{producto1}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Stock 6\", () => pm.expect(pm.response.json().cantidad).to.eql(6));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Anulacion",
+      "item": [
+        {
+          "name": "N01 [Error] El cajero no puede anular -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/ventas/{{ventaId}}/anulacion",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "{{ventaId}}",
+                "anulacion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Intento de cajero\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N02 [Error] Sin token -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/ventas/{{ventaId}}/anulacion",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "{{ventaId}}",
+                "anulacion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Sin token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N03 [Error] Sin motivo -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/ventas/{{ventaId}}/anulacion",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "{{ventaId}}",
+                "anulacion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N04 [Error] Venta inexistente -> 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/ventas/999999999/anulacion",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "999999999",
+                "anulacion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"No existe\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N05 El stock sigue en 6 tras los intentos fallidos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{producto1}}",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{producto1}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Stock 6\", () => pm.expect(pm.response.json().cantidad).to.eql(6));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N06 Admin anula la venta -> 200 ANULADA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/ventas/{{ventaId}}/anulacion",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "{{ventaId}}",
+                "anulacion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Error de digitacion\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json();",
+                  "pm.test(\"Estado ANULADA\", () => pm.expect(v.estado).to.eql(\"ANULADA\"));",
+                  "pm.test(\"Guarda motivo y usuario\", () => { pm.expect(v.motivoAnulacion).to.eql(\"Error de digitacion\"); pm.expect(v.usuarioAnulacion).to.eql(\"admin\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N07 El stock volvio a 10",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{producto1}}",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{producto1}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Stock 10\", () => pm.expect(pm.response.json().cantidad).to.eql(10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N08 El kardex muestra la entrada por anulacion",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{producto1}}/movimientos",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{producto1}}",
+                "movimientos"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const m = pm.response.json();",
+                  "pm.test(\"Hay una ENTRADA de 4 por anulacion\", () => pm.expect(m.some(x => x.tipo === \"ENTRADA\" && x.cantidad === 4 && x.motivo.startsWith(\"Anulación de venta\"))).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N09 Anular de nuevo es idempotente: 200 y el stock NO sube otra vez",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/ventas/{{ventaId}}/anulacion",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "{{ventaId}}",
+                "anulacion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Segundo intento\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Conserva el motivo original\", () => pm.expect(pm.response.json().motivoAnulacion).to.eql(\"Error de digitacion\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N10 El stock sigue en 10",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{producto1}}",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{producto1}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Stock 10\", () => pm.expect(pm.response.json().cantidad).to.eql(10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "N11 La venta aparece como ANULADA",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ventasUrl}}/api/ventas/{{ventaId}}",
+              "host": [
+                "{{ventasUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "{{ventaId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ANULADA\", () => pm.expect(pm.response.json().estado).to.eql(\"ANULADA\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 Idempotencia del inventario",
+      "item": [
+        {
+          "name": "I01 Descuento con operacionId -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/salidas/lote",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "salidas",
+                "lote"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operacionId\": \"postman-op-{{$timestamp}}\",\n  \"motivo\": \"Venta de prueba idempotente\",\n  \"items\": [ { \"productoId\": {{producto1}}, \"cantidad\": 2 } ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"operacionId\", pm.request.body.raw.match(/postman-op-\\d+/)[0]);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I02 Mismo operacionId otra vez -> 201 pero NO descuenta de nuevo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/salidas/lote",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "salidas",
+                "lote"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operacionId\": \"{{operacionId}}\",\n  \"motivo\": \"Venta de prueba idempotente\",\n  \"items\": [ { \"productoId\": {{producto1}}, \"cantidad\": 2 } ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I03 El stock bajo solo 2 (queda en 8)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{producto1}}",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{producto1}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Stock 8\", () => pm.expect(pm.response.json().cantidad).to.eql(8));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I04 [Error] El cajero no puede revertir por operacion -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/operaciones/{{operacionId}}/reversion",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "operaciones",
+                "{{operacionId}}",
+                "reversion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"No debe poder\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I05 Admin revierte la operacion -> devuelve 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/operaciones/{{operacionId}}/reversion",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "operaciones",
+                "{{operacionId}}",
+                "reversion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Prueba de reversion\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I06 Revertir otra vez no devuelve nada mas (stock 10)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/operaciones/{{operacionId}}/reversion",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "operaciones",
+                "{{operacionId}}",
+                "reversion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Prueba de reversion\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I07 Stock en 10",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/{{producto1}}",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "{{producto1}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Stock 10\", () => pm.expect(pm.response.json().cantidad).to.eql(10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "I08 [Error] Un descuento tardio de la operacion ya cancelada -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{inventarioUrl}}/api/inventario/salidas/lote",
+              "host": [
+                "{{inventarioUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "salidas",
+                "lote"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operacionId\": \"{{operacionId}}\",\n  \"motivo\": \"Llega tarde\",\n  \"items\": [ { \"productoId\": {{producto1}}, \"cantidad\": 2 } ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCajero}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "tokenAdmin",
+      "value": ""
+    },
+    {
+      "key": "tokenCajero",
+      "value": ""
+    },
+    {
+      "key": "producto1",
+      "value": ""
+    },
+    {
+      "key": "ventaId",
+      "value": ""
+    },
+    {
+      "key": "operacionId",
+      "value": ""
+    },
+    {
+      "key": "authUrl",
+      "value": "http://localhost:9001"
+    },
+    {
+      "key": "catalogoUrl",
+      "value": "http://localhost:9002"
+    },
+    {
+      "key": "inventarioUrl",
+      "value": "http://localhost:9003"
+    },
+    {
+      "key": "ventasUrl",
+      "value": "http://localhost:9004"
+    }
+  ]
+}

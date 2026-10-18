@@ -59,6 +59,8 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/ventas").hasAnyRole("ADMIN", "CAJERO")
+                        // Anular una venta devuelve stock: solo el administrador.
+                        .requestMatchers(HttpMethod.POST, "/api/ventas/*/anulacion").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/clientes").hasAnyRole("ADMIN", "CAJERO")
                         .requestMatchers(HttpMethod.PUT, "/api/clientes/**").hasAnyRole("ADMIN", "CAJERO")
                         .requestMatchers(HttpMethod.DELETE, "/api/clientes/**").hasRole("ADMIN")

@@ -1,5 +1,6 @@
 package com.mstock.ventas.controller;
 
+import com.mstock.ventas.dto.AnulacionRequest;
 import com.mstock.ventas.dto.VentaRequest;
 import com.mstock.ventas.dto.VentaResponse;
 import com.mstock.ventas.dto.VentaResumen;
@@ -35,6 +36,13 @@ public class VentaController {
         String token = ((Jwt) authentication.getPrincipal()).getTokenValue();
         VentaResponse venta = ventaService.registrar(request, authentication.getName(), token);
         return ResponseEntity.created(URI.create("/api/ventas/" + venta.id())).body(venta);
+    }
+
+    /** Anula la venta y devuelve su stock (solo ADMIN). Repetirla es seguro. */
+    @PostMapping("/{id}/anulacion")
+    public VentaResponse anular(@PathVariable Long id, @Valid @RequestBody AnulacionRequest request,
+                                Authentication authentication) {
+        return ventaService.anular(id, request.motivo(), authentication.getName());
     }
 
     @GetMapping

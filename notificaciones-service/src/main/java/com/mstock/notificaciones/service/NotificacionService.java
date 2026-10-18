@@ -6,6 +6,7 @@ import com.mstock.notificaciones.dto.ResumenResponse;
 import com.mstock.notificaciones.entity.Notificacion;
 import com.mstock.notificaciones.entity.TipoNotificacion;
 import com.mstock.notificaciones.event.StockBajoEvent;
+import com.mstock.notificaciones.event.VentaAnuladaEvent;
 import com.mstock.notificaciones.event.VentaRegistradaEvent;
 import com.mstock.notificaciones.exception.RecursoNoEncontradoException;
 import com.mstock.notificaciones.repository.NotificacionRepository;
@@ -67,6 +68,30 @@ public class NotificacionService {
                 .mensaje("Venta #" + evento.ventaId() + " por S/ "
                         + total.setScale(2, RoundingMode.HALF_UP).toPlainString()
                         + " registrada por " + usuario)
+                .referenciaId(evento.ventaId())
+                .build());
+    }
+
+    @Transactional
+    public void registrarVentaAnulada(VentaAnuladaEvent evento) {
+        if (evento.ventaId() == null) {
+            throw new IllegalArgumentException("El evento de venta anulada no trae ventaId");
+        }
+        BigDecimal total = evento.total() == null ? BigDecimal.ZERO : evento.total();
+        String usuario = (evento.usuario() == null || evento.usuario().isBlank())
+                ? "un administrador" : evento.usuario().trim();
+        String venta = (evento.numero() == null || evento.numero().isBlank())
+                ? "#" + evento.ventaId() : evento.numero().trim();
+        String motivo = (evento.motivo() == null || evento.motivo().isBlank())
+                ? "" : ". Motivo: " + evento.motivo().trim();
+
+        String mensaje = "Venta " + venta + " por S/ " + total.setScale(2, RoundingMode.HALF_UP).toPlainString()
+                + " anulada por " + usuario + motivo;
+        repository.save(Notificacion.builder()
+                .tipo(TipoNotificacion.VENTA_ANULADA)
+                .titulo("Venta anulada")
+                // La columna admite 500 caracteres; el motivo del usuario puede ser largo.
+                .mensaje(mensaje.length() > 500 ? mensaje.substring(0, 500) : mensaje)
                 .referenciaId(evento.ventaId())
                 .build());
     }

@@ -46,7 +46,7 @@ class VentaRegistroTest {
                 new LineaVenta(new ProductoCatalogo(1L, "ARR-1", "Arroz", new BigDecimal("3.50"), true), 2),
                 new LineaVenta(new ProductoCatalogo(2L, "AZU-1", "Azúcar", new BigDecimal("4.20"), true), 3));
 
-        VentaResponse respuesta = registro.guardar(null, "cajero", lineas);
+        VentaResponse respuesta = registro.guardar(null, "cajero", "op-0001-test", lineas);
 
         assertThat(respuesta.numero()).isEqualTo("B001-00000042");
         assertThat(respuesta.total()).isEqualByComparingTo("19.60");
@@ -54,5 +54,25 @@ class VentaRegistroTest {
         assertThat(respuesta.detalle().get(0).subtotal()).isEqualByComparingTo("7.00");
         assertThat(respuesta.detalle().get(1).subtotal()).isEqualByComparingTo("12.60");
         assertThat(respuesta.usuario()).isEqualTo("cajero");
+    }
+
+    @Test
+    @DisplayName("Guarda el id de la operación de stock en la venta (sirve para anularla después)")
+    void guardaElIdDeOperacion() {
+        when(ventaRepository.saveAndFlush(any(Venta.class))).thenAnswer(invocacion -> {
+            Venta v = invocacion.getArgument(0);
+            if (v.getId() == null) {
+                v.setId(7L);
+            }
+            return v;
+        });
+        List<LineaVenta> lineas = List.of(
+                new LineaVenta(new ProductoCatalogo(1L, "ARR-1", "Arroz", new BigDecimal("3.50"), true), 1));
+
+        registro.guardar(null, "cajero", "op-7777-test", lineas);
+
+        org.mockito.ArgumentCaptor<Venta> captor = org.mockito.ArgumentCaptor.forClass(Venta.class);
+        org.mockito.Mockito.verify(ventaRepository, org.mockito.Mockito.atLeastOnce()).saveAndFlush(captor.capture());
+        assertThat(captor.getAllValues()).allSatisfy(v -> assertThat(v.getOperacionId()).isEqualTo("op-7777-test"));
     }
 }

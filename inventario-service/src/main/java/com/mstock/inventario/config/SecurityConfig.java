@@ -63,7 +63,8 @@ public class SecurityConfig {
                                 .hasAnyRole("ADMIN", "ALMACENERO", "CAJERO")
                         // Devolver stock sin una venta detrás sería inflar el inventario: solo la cuenta
                         // de servicio de ventas-service (compensación) o un administrador.
-                        .requestMatchers(HttpMethod.POST, "/api/inventario/reversiones")
+                        .requestMatchers(HttpMethod.POST, "/api/inventario/reversiones",
+                                "/api/inventario/operaciones/*/reversion")
                                 .hasAnyRole("ADMIN", "SERVICIO")
                         .requestMatchers("/api/**").hasAnyRole("ADMIN", "ALMACENERO")
                         .anyRequest().authenticated())

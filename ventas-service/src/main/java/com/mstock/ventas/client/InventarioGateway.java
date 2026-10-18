@@ -2,6 +2,7 @@ package com.mstock.ventas.client;
 
 import com.mstock.ventas.exception.RecursoNoEncontradoException;
 import com.mstock.ventas.exception.ReglaNegocioException;
+import com.mstock.ventas.exception.ResultadoIncierto;
 import com.mstock.ventas.exception.ServicioNoDisponibleException;
 import com.mstock.ventas.exception.StockInsuficienteException;
 import feign.FeignException;
@@ -16,13 +17,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Descuento y reversión de stock. Son escrituras (POST): NO se reintentan, porque si el inventario
- * ya descontó y solo se perdió la respuesta, un reintento descontaría dos veces.
- * Solo hay circuit breaker, para dejar de insistir cuando el inventario está caído.
+ * Descuento y reversión de stock. Son escrituras (POST), pero todas llevan un id de operación y el inventario
+ * las trata como idempotentes: si ya aplicó la operación y solo se perdió la respuesta, repetirla con el mismo
+ * id devuelve el resultado de la primera vez sin descontar otra vez. Por eso aquí SÍ se reintenta una vez
+ * (solo ante timeout o 5xx). Además hay circuit breaker, para dejar de insistir cuando el inventario está caído.
  */
 @Slf4j
 @Component
 public class InventarioGateway {
+
+    static final int INTENTOS = 2;
 
     private static final Pattern MENSAJE = Pattern.compile("\"mensaje\"\\s*:\\s*\"([^\"]*)\"");
 
@@ -35,25 +39,49 @@ public class InventarioGateway {
         this.circuitBreaker = circuitBreaker;
     }
 
-    public void descontar(List<ItemLote> items, String token) {
-        ejecutar(() -> client.salidaLote(new LoteRequest(items, "Venta de mostrador"), "Bearer " + token),
-                "descontar el stock");
+    /**
+     * Descuenta todos los productos o ninguno. Lanza {@link ResultadoIncierto} si tras reintentar no se supo
+     * si el inventario aplicó el descuento.
+     */
+    public void descontar(String operacionId, List<ItemLote> items, String token) {
+        ejecutar(() -> client.salidaLote(new LoteRequest(items, "Venta de mostrador", operacionId), "Bearer " + token),
+                "descontar el stock", true);
+    }
+
+    /** Deshace lo que descontó la operación. No hace nada si la operación nunca se aplicó. */
+    public void revertirOperacion(String operacionId, String motivo, String token) {
+        ejecutar(() -> client.reversionDeOperacion(operacionId, new ReversionOperacionRequest(motivo),
+                "Bearer " + token), "revertir el stock", true);
+    }
+
+    /** Devuelve stock por lista de productos. Con operacionId es idempotente; sin él, no. */
+    public void revertir(List<ItemLote> items, String motivo, String operacionId, String token) {
+        ejecutar(() -> client.reversion(new LoteRequest(items, motivo, operacionId), "Bearer " + token),
+                "revertir el stock", operacionId != null);
     }
 
     public void revertir(List<ItemLote> items, String token) {
-        ejecutar(() -> client.reversion(new LoteRequest(items, "Reversión de venta no registrada"),
-                "Bearer " + token), "revertir el stock");
+        revertir(items, "Reversión de venta no registrada", null, token);
     }
 
-    private void ejecutar(Runnable operacion, String accion) {
-        try {
-            circuitBreaker.executeRunnable(() -> llamar(operacion));
-        } catch (CallNotPermittedException e) {
-            throw new ServicioNoDisponibleException(
-                    "El inventario no está respondiendo: no se pudo " + accion + ". La venta no se registró. "
-                            + "Inténtalo en unos segundos");
-        } catch (FalloInventarioException e) {
-            throw new ServicioNoDisponibleException("No se pudo " + accion + ": el inventario no respondió");
+    private void ejecutar(Runnable operacion, String accion, boolean reintentable) {
+        int intentos = reintentable ? INTENTOS : 1;
+        for (int intento = 1; intento <= intentos; intento++) {
+            try {
+                circuitBreaker.executeRunnable(() -> llamar(operacion));
+                return;
+            } catch (CallNotPermittedException e) {
+                throw new ServicioNoDisponibleException(
+                        "El inventario no está respondiendo: no se pudo " + accion + ". La operación no se registró. "
+                                + "Inténtalo en unos segundos");
+            } catch (FalloInventarioException e) {
+                if (intento < intentos) {
+                    log.warn("Sin respuesta del inventario al {} (intento {} de {}); se repite con el mismo id",
+                            accion, intento, intentos);
+                    continue;
+                }
+                throw new ResultadoIncierto("No se pudo " + accion + ": el inventario no respondió");
+            }
         }
     }
 

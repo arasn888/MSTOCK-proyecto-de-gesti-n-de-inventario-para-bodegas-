@@ -52,6 +52,10 @@ public class Movimiento {
     @Column(nullable = false, length = 50)
     private String usuario;
 
+    /** Id de la operación remota que originó el movimiento (idempotencia); null en los manuales. */
+    @Column(name = "operacion_id", length = 64)
+    private String operacionId;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime fecha;
 

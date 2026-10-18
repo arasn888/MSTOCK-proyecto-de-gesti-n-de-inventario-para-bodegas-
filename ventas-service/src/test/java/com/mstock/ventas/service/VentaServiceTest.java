@@ -7,7 +7,10 @@ import com.mstock.ventas.client.ProductoCatalogo;
 import com.mstock.ventas.config.TokenServicio;
 import com.mstock.ventas.dto.ItemVentaRequest;
 import com.mstock.ventas.dto.VentaRequest;
+import com.mstock.ventas.dto.VentaResponse;
+import com.mstock.ventas.entity.EstadoVenta;
 import com.mstock.ventas.exception.RecursoNoEncontradoException;
+import com.mstock.ventas.exception.ResultadoIncierto;
 import com.mstock.ventas.exception.ReglaNegocioException;
 import com.mstock.ventas.exception.ServicioNoDisponibleException;
 import com.mstock.ventas.exception.StockInsuficienteException;
@@ -27,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -47,6 +51,8 @@ class VentaServiceTest {
     private InventarioGateway inventario;
     @Mock
     private VentaRegistro registro;
+    @Mock
+    private VentaAnulacion anulacion;
     @Mock
     private VentaRepository ventaRepository;
     @Mock
@@ -69,9 +75,12 @@ class VentaServiceTest {
 
         service.registrar(venta(null, new ItemVentaRequest(1L, 2)), "cajero", TOKEN);
 
-        verify(inventario).descontar(List.of(new ItemLote(1L, 2)), TOKEN);
+        ArgumentCaptor<String> operacion = ArgumentCaptor.forClass(String.class);
+        verify(inventario).descontar(operacion.capture(), eq(List.of(new ItemLote(1L, 2))), eq(TOKEN));
+        assertThat(java.util.UUID.fromString(operacion.getValue())).isNotNull();
         ArgumentCaptor<List<LineaVenta>> lineas = ArgumentCaptor.forClass(List.class);
-        verify(registro).guardar(eq(null), eq("cajero"), lineas.capture());
+        // La misma operación que descontó el stock queda guardada en la venta (para poder anularla).
+        verify(registro).guardar(eq(null), eq("cajero"), eq(operacion.getValue()), lineas.capture());
         assertThat(lineas.getValue()).hasSize(1);
         assertThat(lineas.getValue().get(0).producto().precioVenta()).isEqualByComparingTo("3.50");
         assertThat(lineas.getValue().get(0).cantidad()).isEqualTo(2);
@@ -86,7 +95,7 @@ class VentaServiceTest {
         service.registrar(venta(null, new ItemVentaRequest(2L, 1), new ItemVentaRequest(1L, 2),
                 new ItemVentaRequest(2L, 4)), "cajero", TOKEN);
 
-        verify(inventario).descontar(List.of(new ItemLote(1L, 2), new ItemLote(2L, 5)), TOKEN);
+        verify(inventario).descontar(anyString(), eq(List.of(new ItemLote(1L, 2), new ItemLote(2L, 5))), eq(TOKEN));
     }
 
     @Test
@@ -115,12 +124,12 @@ class VentaServiceTest {
     void stockInsuficiente() {
         when(catalogo.consultarProducto(1L, TOKEN)).thenReturn(producto(1, "3.50", true));
         doThrow(new StockInsuficienteException("Stock insuficiente: disponible 1, solicitado 5"))
-                .when(inventario).descontar(anyList(), eq(TOKEN));
+                .when(inventario).descontar(anyString(), anyList(), eq(TOKEN));
 
         assertThatThrownBy(() -> service.registrar(venta(null, new ItemVentaRequest(1L, 5)), "cajero", TOKEN))
                 .isInstanceOf(StockInsuficienteException.class);
-        verify(registro, never()).guardar(any(), any(), anyList());
-        verify(inventario, never()).revertir(anyList(), any());
+        verify(registro, never()).guardar(any(), any(), any(), anyList());
+        verify(inventario, never()).revertirOperacion(any(), any(), any());
     }
 
     @Test
@@ -128,33 +137,35 @@ class VentaServiceTest {
     void inventarioCaido() {
         when(catalogo.consultarProducto(1L, TOKEN)).thenReturn(producto(1, "3.50", true));
         doThrow(new ServicioNoDisponibleException("inventario caído"))
-                .when(inventario).descontar(anyList(), eq(TOKEN));
+                .when(inventario).descontar(anyString(), anyList(), eq(TOKEN));
 
         assertThatThrownBy(() -> service.registrar(venta(null, new ItemVentaRequest(1L, 1)), "cajero", TOKEN))
                 .isInstanceOf(ServicioNoDisponibleException.class);
-        verify(registro, never()).guardar(any(), any(), anyList());
+        verify(registro, never()).guardar(any(), any(), any(), anyList());
     }
 
     @Test
     @DisplayName("Compensación: si guardar falla tras descontar, se devuelve el stock")
     void falloAlGuardarRevierteElStock() {
         when(catalogo.consultarProducto(1L, TOKEN)).thenReturn(producto(1, "3.50", true));
-        when(registro.guardar(any(), any(), anyList())).thenThrow(new IllegalStateException("BD caída"));
+        when(registro.guardar(any(), any(), any(), anyList())).thenThrow(new IllegalStateException("BD caída"));
         when(tokenServicio.generar()).thenReturn("token-servicio");
 
         assertThatThrownBy(() -> service.registrar(venta(null, new ItemVentaRequest(1L, 2)), "cajero", TOKEN))
                 .isInstanceOf(IllegalStateException.class).hasMessage("BD caída");
-        // La reversión va con el token de la cuenta de servicio, no con el del cajero.
-        verify(inventario).revertir(List.of(new ItemLote(1L, 2)), "token-servicio");
+        // Se deshace por id de operación y con el token de la cuenta de servicio, no con el del cajero.
+        ArgumentCaptor<String> operacion = ArgumentCaptor.forClass(String.class);
+        verify(inventario).descontar(operacion.capture(), anyList(), eq(TOKEN));
+        verify(inventario).revertirOperacion(eq(operacion.getValue()), anyString(), eq("token-servicio"));
     }
 
     @Test
     @DisplayName("Si además falla la reversión, se informa el error original de la venta")
     void falloLaReversion() {
         when(catalogo.consultarProducto(1L, TOKEN)).thenReturn(producto(1, "3.50", true));
-        when(registro.guardar(any(), any(), anyList())).thenThrow(new IllegalStateException("BD caída"));
+        when(registro.guardar(any(), any(), any(), anyList())).thenThrow(new IllegalStateException("BD caída"));
         doThrow(new ServicioNoDisponibleException("inventario caído"))
-                .when(inventario).revertir(anyList(), any());
+                .when(inventario).revertirOperacion(any(), any(), any());
 
         assertThatThrownBy(() -> service.registrar(venta(null, new ItemVentaRequest(1L, 2)), "cajero", TOKEN))
                 .isInstanceOf(IllegalStateException.class).hasMessage("BD caída");
@@ -175,5 +186,113 @@ class VentaServiceTest {
     void rangoInvalido() {
         assertThatThrownBy(() -> service.listar(java.time.LocalDate.of(2026, 10, 10), java.time.LocalDate.of(2026, 10, 1)))
                 .isInstanceOf(ReglaNegocioException.class);
+    }
+
+    @Test
+    @DisplayName("Timeout del inventario: no se sabe si descontó, se deshace por id de operación y se informa 503")
+    void resultadoIncierto() {
+        when(catalogo.consultarProducto(1L, TOKEN)).thenReturn(producto(1, "3.50", true));
+        doThrow(new ResultadoIncierto("el inventario no respondió"))
+                .when(inventario).descontar(anyString(), anyList(), eq(TOKEN));
+        when(tokenServicio.generar()).thenReturn("token-servicio");
+
+        assertThatThrownBy(() -> service.registrar(venta(null, new ItemVentaRequest(1L, 2)), "cajero", TOKEN))
+                .isInstanceOf(ResultadoIncierto.class);
+
+        ArgumentCaptor<String> operacion = ArgumentCaptor.forClass(String.class);
+        verify(inventario).descontar(operacion.capture(), anyList(), eq(TOKEN));
+        verify(inventario).revertirOperacion(eq(operacion.getValue()), anyString(), eq("token-servicio"));
+        verify(registro, never()).guardar(any(), any(), any(), anyList());
+    }
+
+    @Test
+    @DisplayName("Inventario con el circuito abierto: la petición nunca salió, no hay nada que deshacer")
+    void circuitoAbiertoNoCompensa() {
+        when(catalogo.consultarProducto(1L, TOKEN)).thenReturn(producto(1, "3.50", true));
+        doThrow(new ServicioNoDisponibleException("no está respondiendo"))
+                .when(inventario).descontar(anyString(), anyList(), eq(TOKEN));
+
+        assertThatThrownBy(() -> service.registrar(venta(null, new ItemVentaRequest(1L, 2)), "cajero", TOKEN))
+                .isInstanceOf(ServicioNoDisponibleException.class);
+
+        verify(inventario, never()).revertirOperacion(any(), any(), any());
+    }
+
+    // ---------------------------------------------------------------- anulación
+
+    private VentaResponse respuesta() {
+        return new VentaResponse(5L, "B001-00000005", null, null, "cajero", java.time.LocalDateTime.now(),
+                new BigDecimal("13.00"), EstadoVenta.COMPLETADA, null, null, null, List.of());
+    }
+
+    private VentaAnulacion.Pendiente pendiente(EstadoVenta estado, String operacionId) {
+        return new VentaAnulacion.Pendiente(5L, "B001-00000005", estado, operacionId,
+                List.of(new ItemLote(1L, 2), new ItemLote(2L, 3)));
+    }
+
+    @Test
+    @DisplayName("Anular: devuelve el stock por id de operación (cuenta de servicio) y recién después marca la venta")
+    void anularDevuelveStockYMarca() {
+        when(anulacion.preparar(5L)).thenReturn(pendiente(EstadoVenta.COMPLETADA, "op-aaaa-bbbb"));
+        when(tokenServicio.generar()).thenReturn("token-servicio");
+        VentaResponse anulada = respuesta();
+        when(anulacion.marcarAnulada(5L, "Error de digitación", "admin")).thenReturn(anulada);
+
+        VentaResponse resultado = service.anular(5L, "  Error de digitación ", "admin");
+
+        assertThat(resultado).isSameAs(anulada);
+        org.mockito.InOrder orden = org.mockito.Mockito.inOrder(inventario, anulacion);
+        orden.verify(inventario).revertirOperacion("op-aaaa-bbbb", "Anulación de venta B001-00000005", "token-servicio");
+        orden.verify(anulacion).marcarAnulada(5L, "Error de digitación", "admin");
+    }
+
+    @Test
+    @DisplayName("Anular una venta ya anulada: devuelve su estado y NO toca el inventario")
+    void anularDosVeces() {
+        when(anulacion.preparar(5L)).thenReturn(pendiente(EstadoVenta.ANULADA, "op-aaaa-bbbb"));
+        VentaResponse existente = respuesta();
+        when(anulacion.consultar(5L)).thenReturn(existente);
+
+        assertThat(service.anular(5L, "otra vez", "admin")).isSameAs(existente);
+
+        verifyNoInteractions(inventario);
+        verify(anulacion, never()).marcarAnulada(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Anular una venta anterior al control de operaciones: devuelve por lista con clave fija por venta")
+    void anularVentaAntigua() {
+        when(anulacion.preparar(5L)).thenReturn(pendiente(EstadoVenta.COMPLETADA, null));
+        when(tokenServicio.generar()).thenReturn("token-servicio");
+
+        service.anular(5L, "Cliente se arrepintió", "admin");
+
+        verify(inventario).revertir(List.of(new ItemLote(1L, 2), new ItemLote(2L, 3)),
+                "Anulación de venta B001-00000005", "ANUL-00000005", "token-servicio");
+        verify(anulacion).marcarAnulada(5L, "Cliente se arrepintió", "admin");
+    }
+
+    @Test
+    @DisplayName("Anular con el inventario caído: la venta sigue COMPLETADA y se puede reintentar")
+    void anularConInventarioCaido() {
+        when(anulacion.preparar(5L)).thenReturn(pendiente(EstadoVenta.COMPLETADA, "op-aaaa-bbbb"));
+        when(tokenServicio.generar()).thenReturn("token-servicio");
+        doThrow(new ServicioNoDisponibleException("inventario caído"))
+                .when(inventario).revertirOperacion(any(), any(), any());
+
+        assertThatThrownBy(() -> service.anular(5L, "motivo", "admin"))
+                .isInstanceOf(ServicioNoDisponibleException.class);
+
+        verify(anulacion, never()).marcarAnulada(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Anular una venta inexistente: 404")
+    void anularInexistente() {
+        when(anulacion.preparar(99L)).thenThrow(new RecursoNoEncontradoException("No existe la venta con id 99"));
+
+        assertThatThrownBy(() -> service.anular(99L, "motivo", "admin"))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+        verifyNoInteractions(inventario);
     }
 }

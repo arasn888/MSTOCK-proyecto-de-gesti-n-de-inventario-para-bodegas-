@@ -25,9 +25,10 @@ public class VentaRegistro {
     private final EventosPublisher eventos;
 
     @Transactional
-    public VentaResponse guardar(Long clienteId, String usuario, List<LineaVenta> lineas) {
+    public VentaResponse guardar(Long clienteId, String usuario, String operacionId, List<LineaVenta> lineas) {
         Venta venta = Venta.builder()
                 .usuario(usuario)
+                .operacionId(operacionId)
                 .total(BigDecimal.ZERO)
                 .cliente(clienteId == null ? null : clienteRepository.getReferenceById(clienteId))
                 .build();

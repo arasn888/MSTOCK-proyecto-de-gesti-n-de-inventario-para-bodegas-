@@ -19,10 +19,12 @@ public class RabbitConfig {
 
     public static final String COLA_STOCK_BAJO = "notificaciones.stock-bajo";
     public static final String COLA_VENTAS = "notificaciones.venta-registrada";
+    public static final String COLA_VENTAS_ANULADAS = "notificaciones.venta-anulada";
     public static final String COLA_DLQ = "notificaciones.dlq";
 
     public static final String RK_STOCK_BAJO = "stock.bajo";
     public static final String RK_VENTA_REGISTRADA = "venta.registrada";
+    public static final String RK_VENTA_ANULADA = "venta.anulada";
     private static final String RK_DLQ = "notificaciones.dlq";
 
     @Bean
@@ -52,6 +54,14 @@ public class RabbitConfig {
     }
 
     @Bean
+    Queue colaVentasAnuladas() {
+        return QueueBuilder.durable(COLA_VENTAS_ANULADAS)
+                .deadLetterExchange(EXCHANGE_DLX)
+                .deadLetterRoutingKey(RK_DLQ)
+                .build();
+    }
+
+    @Bean
     Queue colaMuertos() {
         return QueueBuilder.durable(COLA_DLQ).build();
     }
@@ -64,6 +74,11 @@ public class RabbitConfig {
     @Bean
     Binding bindingVentas(Queue colaVentas, TopicExchange eventosExchange) {
         return BindingBuilder.bind(colaVentas).to(eventosExchange).with(RK_VENTA_REGISTRADA);
+    }
+
+    @Bean
+    Binding bindingVentasAnuladas(Queue colaVentasAnuladas, TopicExchange eventosExchange) {
+        return BindingBuilder.bind(colaVentasAnuladas).to(eventosExchange).with(RK_VENTA_ANULADA);
     }
 
     @Bean

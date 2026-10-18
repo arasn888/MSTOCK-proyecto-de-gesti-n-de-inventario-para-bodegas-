@@ -56,6 +56,11 @@ public class InventarioFacade {
         return inventario.registrarEntradaLote(request, usuario);
     }
 
+    /** Deshace por id de operación lo que se descontó realmente. No consulta el catálogo (ver registrarReversion). */
+    public List<MovimientoResponse> revertirOperacion(String operacionId, String motivo, String usuario) {
+        return inventario.revertirOperacion(operacionId, motivo, usuario);
+    }
+
     private void validarProducto(Long productoId, String token) {
         ProductoCatalogo producto = catalogo.consultarProducto(productoId, token);
         if (!producto.activo()) {
