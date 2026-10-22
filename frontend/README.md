@@ -20,7 +20,7 @@ ng add @angular/material
   iconos salen como texto, agrega a mano en el `<head>`:
   `<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">`
 
-Después **descomprime encima del proyecto** el zip de la entrega (acepta reemplazar `app.ts`, `app.config.ts` y `app.routes.ts`)
+Después copia encima del proyecto el código de `src/` del repositorio (acepta reemplazar `app.ts`, `app.config.ts` y `app.routes.ts`)
 y borra los archivos del scaffold que ya no se usan:
 
 ```powershell
@@ -34,7 +34,11 @@ del src\app\app.html, src\app\app.scss, src\app\app.spec.ts
 ng serve
 ```
 
-Abre `http://localhost:4200`. Compilar sin servir: `ng build`.
+Abre `http://localhost:4200`. Importante: `ng serve` se ejecuta **dentro** de `frontend/mstock-web` (donde está `angular.json`);
+desde otra carpeta, Angular responde "command not available outside a workspace".
+
+Compilar sin servir: `ng build` (desarrollo) o `ng build --configuration production` (optimizado, deja el resultado en
+`dist/mstock-web/browser`; unos 120 kB transferidos en la carga inicial, el resto se descarga por pantalla).
 
 ## Estructura
 
@@ -47,7 +51,8 @@ src/app/
   core/auth/          sesión (JWT en localStorage), interceptor, guards por rol, menú
   core/http/          mensajes de error de la API y descarga de archivos (boleta PDF, kardex CSV)
   layout/shell.ts     barra superior, menú lateral por rol, campana de notificaciones
-  pages/              login, inicio y "en construcción" (se reemplaza módulo a módulo)
+  pages/              una carpeta por pantalla (ver la tabla de abajo); "en construcción" queda solo como respaldo
+  shared/             piezas reutilizables: cabecera de página y diálogo de confirmación
 ```
 
 ## Seguridad en el frontend
@@ -58,6 +63,24 @@ src/app/
   real son los servicios, que validan el JWT y el rol en cada petición.
 - Los permisos del menú reflejan los de los servicios: ADMIN todo; CAJERO ventas, clientes, cierre de caja y consulta de
   productos; ALMACENERO catálogo (lectura), inventario, compras y notificaciones.
+
+## Pantallas
+
+| Menú | Ruta | Roles | Qué hace |
+|---|---|---|---|
+| Punto de venta | `/ventas/nueva` | ADMIN, CAJERO | Busca por nombre o código (lector de código de barras + Enter), carrito, cliente opcional, cobra y abre la boleta PDF |
+| Ventas | `/ventas` | ADMIN, CAJERO | Historial por fechas, detalle, boleta; solo ADMIN anula (con motivo) |
+| Clientes | `/clientes` | ADMIN, CAJERO | Alta y edición; eliminar solo ADMIN |
+| Cierre de caja | `/cierre-caja` | ADMIN, CAJERO | Totales del día; el CAJERO ve solo lo suyo |
+| Productos | `/productos` | todos | Consulta; crear, editar y desactivar solo ADMIN |
+| Categorías, Proveedores | `/categorias`, `/proveedores` | ADMIN, ALMACENERO | Consulta; escribir solo ADMIN |
+| Inventario | `/inventario` | ADMIN, ALMACENERO | Stock, alertas, entradas, salidas, ajustes, stock mínimo, kardex y CSV |
+| Compras | `/compras` | ADMIN, ALMACENERO | Registrar compras y ver su estado (PENDIENTE → RECIBIDA o RECHAZADA) |
+| Notificaciones | `/notificaciones` | ADMIN, ALMACENERO | Avisos de stock bajo y de ventas; la campana muestra las no leídas |
+| Dashboard | `/reportes` | ADMIN | Ventas, ticket promedio, ganancia, anuladas y productos más vendidos |
+| Usuarios | `/usuarios` | ADMIN | Alta, edición, desactivación y eliminación de cuentas |
+
+Matriz completa de permisos y lista de pruebas manuales por rol: `docs/frontend.md`.
 
 ## Cómo agregar una pantalla
 

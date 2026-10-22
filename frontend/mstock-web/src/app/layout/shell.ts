@@ -1,6 +1,6 @@
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -9,8 +9,8 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { catchError, map, of, switchMap, timer } from 'rxjs';
-import { NotificacionesApi } from '../core/api/notificaciones.api';
+import { map, timer } from 'rxjs';
+import { ContadorNotificaciones } from '../core/contador-notificaciones';
 import { menuPara } from '../core/auth/navegacion';
 import { SesionService } from '../core/auth/sesion.service';
 
@@ -87,7 +87,7 @@ import { SesionService } from '../core/auth/sesion.service';
 export class Shell {
   private readonly sesion = inject(SesionService);
   private readonly router = inject(Router);
-  private readonly notificaciones = inject(NotificacionesApi);
+  private readonly contador = inject(ContadorNotificaciones);
   private readonly pantallas = inject(BreakpointObserver);
 
   protected readonly usuario = this.sesion.usuario;
@@ -102,19 +102,17 @@ export class Shell {
   protected readonly menuAbierto = signal(!this.esMovil());
 
   /** Notificaciones sin leer, consultadas cada 30 segundos. Si falla la consulta, no se muestra globo. */
-  protected readonly noLeidas = toSignal(
-    timer(0, 30_000).pipe(
-      switchMap(() =>
-        this.muestraCampana()
-          ? this.notificaciones.resumen().pipe(
-              map((resumen) => resumen.noLeidas),
-              catchError(() => of(0)),
-            )
-          : of(0),
-      ),
-    ),
-    { initialValue: 0 },
-  );
+  protected readonly noLeidas = this.contador.noLeidas;
+
+  constructor() {
+    timer(0, 30_000)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        if (this.muestraCampana()) {
+          this.contador.refrescar();
+        }
+      });
+  }
 
   protected alNavegar(): void {
     if (this.esMovil()) {

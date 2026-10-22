@@ -13,6 +13,9 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
 
     Optional<Producto> findByCodigo(String codigo);
 
+    @EntityGraph(attributePaths = {"categoria", "proveedor"})
+    Optional<Producto> findByCodigoAndActivoTrue(String codigo);
+
     boolean existsByCodigo(String codigo);
 
     List<Producto> findByNombreContainingIgnoreCase(String nombre);
@@ -39,24 +42,24 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
     @EntityGraph(attributePaths = {"categoria", "proveedor"})
     List<Producto> findByActivoTrueAndCategoriaIdAndNombreContainingIgnoreCase(Long categoriaId, String nombre);
 
-    /** Código de barras o interno exacto, solo de un producto activo (lector de código de barras del punto de venta). */
+    /** Productos activos cuyo nombre O código contiene el texto (sin distinguir mayúsculas). Lo usa el punto de venta. */
     @EntityGraph(attributePaths = {"categoria", "proveedor"})
-    Optional<Producto> findByCodigoAndActivoTrue(String codigo);
-
-    /** Búsqueda de productos activos por parte del nombre O del código, sin distinguir mayúsculas. */
-    @EntityGraph(attributePaths = {"categoria", "proveedor"})
-    @Query("select p from Producto p where p.activo = true "
-            + "and (lower(p.nombre) like lower(concat('%', :texto, '%')) "
-            + "or lower(p.codigo) like lower(concat('%', :texto, '%'))) "
-            + "order by p.nombre")
+    @Query("""
+            select p from Producto p
+            where p.activo = true
+              and (lower(p.nombre) like lower(concat('%', :texto, '%'))
+                   or lower(p.codigo) like lower(concat('%', :texto, '%')))
+            """)
     List<Producto> buscarActivosPorTexto(@Param("texto") String texto);
 
-    /** Igual que buscarActivosPorTexto, pero limitada a una categoría. */
     @EntityGraph(attributePaths = {"categoria", "proveedor"})
-    @Query("select p from Producto p where p.activo = true and p.categoria.id = :categoriaId "
-            + "and (lower(p.nombre) like lower(concat('%', :texto, '%')) "
-            + "or lower(p.codigo) like lower(concat('%', :texto, '%'))) "
-            + "order by p.nombre")
+    @Query("""
+            select p from Producto p
+            where p.activo = true
+              and p.categoria.id = :categoriaId
+              and (lower(p.nombre) like lower(concat('%', :texto, '%'))
+                   or lower(p.codigo) like lower(concat('%', :texto, '%')))
+            """)
     List<Producto> buscarActivosPorTextoYCategoria(@Param("texto") String texto,
                                                    @Param("categoriaId") Long categoriaId);
 }

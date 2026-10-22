@@ -44,3 +44,11 @@ bin/
 ### MSTOCK ###
 .idea/
 .env
+
+### Frontend (Angular) ###
+node_modules/
+.angular/
+frontend/mstock-web/dist/
+frontend/mstock-web/out-tsc/
+*.tsbuildinfo
+npm-debug.log*

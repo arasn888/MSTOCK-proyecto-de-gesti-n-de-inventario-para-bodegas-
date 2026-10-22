@@ -112,11 +112,12 @@ La carpeta de resiliencia de cada colección es manual (requiere apagar un servi
 
 ## Frontend (Angular)
 En `frontend/` (ver `frontend/README.md`): Angular 22 con Angular Material, consumiendo todos los servicios solo a través del
-gateway. Ya tiene la capa de datos completa (modelos y servicios de API de los seis servicios), el login con JWT, el interceptor,
-los guards por rol y el layout con el menú según el rol. Las pantallas de cada módulo se construyen por entregas.
+gateway. Incluye todas las pantallas del menú (punto de venta, ventas, clientes, cierre de caja, productos, categorías, proveedores,
+inventario, compras, notificaciones, dashboard y usuarios), el login con JWT, el interceptor y los guards por rol.
+Permisos por pantalla y pruebas manuales: `docs/frontend.md`.
 
 ## Pendiente
 
-Pantallas de Angular por módulo, Docker/Kubernetes y observabilidad. Mejoras anotadas: outbox para no perder eventos (compras y ventas), usar la
+Docker/Kubernetes y observabilidad (Fase 7); la URL del gateway del frontend hoy está fija en `environment.ts`. Mejoras anotadas: outbox para no perder eventos (compras y ventas), usar la
 cuenta de servicio también en el descuento de stock (hoy va con el token del cajero) y una clave de idempotencia enviada
 por el cliente para que un doble clic en "Vender" no cree dos ventas.
