@@ -1,0 +1,109 @@
+# Entrada al sistema: el gateway (API) y el frontend (nginx).
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: mstock
+spec:
+  selector:
+    app: api-gateway
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: mstock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      enableServiceLinks: false
+      # Sin esto el servicio podría arrancar antes que el Config Server y quedarse con la configuración local
+      initContainers:
+        - name: esperar-plataforma
+          image: busybox:1.37
+          command: ["sh", "-c", "until nc -z config-server 9888; do echo esperando config-server; sleep 3; done && until nc -z eureka-server 9761; do echo esperando eureka-server; sleep 3; done"]
+      containers:
+        - name: api-gateway
+          image: mstock/api-gateway:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:9888"
+            - name: EUREKA_DEFAULT_ZONE
+              value: "http://eureka-server:9761/eureka/"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "true"
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: JWT_SECRET } }
+            - name: CORS_ALLOWED_ORIGINS
+              value: "http://localhost:4200,http://127.0.0.1:4200"
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            periodSeconds: 5
+            failureThreshold: 36        # hasta 3 minutos para arrancar
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: { memory: 384Mi, cpu: 100m }
+            limits: { memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: mstock
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: mstock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: web
+          image: mstock/web:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            periodSeconds: 10
+          resources:
+            requests: { memory: 32Mi, cpu: 10m }
+            limits: { memory: 128Mi }

@@ -1,0 +1,73 @@
+# MySQL con disco persistente. Las bases se crean con docker/mysql/init.sql (ConfigMap "mysql-init",
+# que crea el script desplegar.ps1 a partir de ese mismo archivo).
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: mstock
+spec:
+  clusterIP: None            # servicio "headless" para el StatefulSet
+  selector:
+    app: mysql
+  ports:
+    - port: 3306
+      name: mysql
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: mstock
+spec:
+  serviceName: mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          ports:
+            - containerPort: 3306
+          env:
+            - name: TZ
+              value: America/Lima
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_ROOT_PASSWORD } }
+            - name: MYSQL_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_USER } }
+            - name: MYSQL_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_PASSWORD } }
+          volumeMounts:
+            - name: datos
+              mountPath: /var/lib/mysql
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$MYSQL_ROOT_PASSWORD\""]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests: { memory: 512Mi, cpu: 100m }
+            limits: { memory: 1Gi }
+      volumes:
+        - name: init
+          configMap:
+            name: mysql-init
+  volumeClaimTemplates:
+    - metadata:
+        name: datos
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi

@@ -116,8 +116,17 @@ gateway. Incluye todas las pantallas del menú (punto de venta, ventas, clientes
 inventario, compras, notificaciones, dashboard y usuarios), el login con JWT, el interceptor y los guards por rol.
 Permisos por pantalla y pruebas manuales: `docs/frontend.md`.
 
+## Docker (todo el sistema)
+`docker compose up -d` levanta solo MySQL y RabbitMQ (para desarrollar con Gradle y `ng serve`). Para correr **todo** en contenedores:
+`docker compose --profile full up -d --build`, y el sistema queda en `http://localhost:4200`. Guía completa, variables y problemas
+frecuentes: `docs/docker.md`.
+
+## Kubernetes
+Manifiestos en `k8s/` (Deployments, StatefulSets, Secret generado desde `.env`, probes y `initContainers`). Despliegue con
+`.\k8s\desplegar.ps1` y acceso con `.\k8s\acceso.ps1`; explicación y comandos en `docs/kubernetes.md`.
+
 ## Pendiente
 
-Docker/Kubernetes y observabilidad (Fase 7); la URL del gateway del frontend hoy está fija en `environment.ts`. Mejoras anotadas: outbox para no perder eventos (compras y ventas), usar la
+observabilidad (Fase 7; Docker, compose y Kubernetes ya están); la URL del gateway del frontend hoy está fija en `environment.ts`. Mejoras anotadas: outbox para no perder eventos (compras y ventas), usar la
 cuenta de servicio también en el descuento de stock (hoy va con el token del cajero) y una clave de idempotencia enviada
 por el cliente para que un doble clic en "Vender" no cree dos ventas.

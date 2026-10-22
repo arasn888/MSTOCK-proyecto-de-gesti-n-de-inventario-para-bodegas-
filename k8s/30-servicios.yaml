@@ -1,0 +1,483 @@
+# Servicios de negocio (cada uno con su base de datos).
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: mstock
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - port: 9001
+      targetPort: 9001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: mstock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      enableServiceLinks: false
+      # Sin esto el servicio podría arrancar antes que el Config Server y quedarse con la configuración local
+      initContainers:
+        - name: esperar-plataforma
+          image: busybox:1.37
+          command: ["sh", "-c", "until nc -z mysql 3306; do echo esperando mysql; sleep 3; done && until nc -z rabbitmq 5672; do echo esperando rabbitmq; sleep 3; done && until nc -z config-server 9888; do echo esperando config-server; sleep 3; done && until nc -z eureka-server 9761; do echo esperando eureka-server; sleep 3; done"]
+      containers:
+        - name: auth-service
+          image: mstock/auth-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9001
+          env:
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:9888"
+            - name: EUREKA_DEFAULT_ZONE
+              value: "http://eureka-server:9761/eureka/"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "true"
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: JWT_SECRET } }
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql:3306/mstock_auth?useSSL=false&allowPublicKeyRetrieval=true"
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_USER } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_PASSWORD } }
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_USER } }
+            - name: RABBITMQ_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_PASSWORD } }
+            - name: ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: ADMIN_PASSWORD } }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 9001 }
+            periodSeconds: 5
+            failureThreshold: 36        # hasta 3 minutos para arrancar
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 9001 }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 9001 }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: { memory: 384Mi, cpu: 100m }
+            limits: { memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalogo-service
+  namespace: mstock
+spec:
+  selector:
+    app: catalogo-service
+  ports:
+    - port: 9002
+      targetPort: 9002
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalogo-service
+  namespace: mstock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catalogo-service
+  template:
+    metadata:
+      labels:
+        app: catalogo-service
+    spec:
+      enableServiceLinks: false
+      # Sin esto el servicio podría arrancar antes que el Config Server y quedarse con la configuración local
+      initContainers:
+        - name: esperar-plataforma
+          image: busybox:1.37
+          command: ["sh", "-c", "until nc -z mysql 3306; do echo esperando mysql; sleep 3; done && until nc -z rabbitmq 5672; do echo esperando rabbitmq; sleep 3; done && until nc -z config-server 9888; do echo esperando config-server; sleep 3; done && until nc -z eureka-server 9761; do echo esperando eureka-server; sleep 3; done"]
+      containers:
+        - name: catalogo-service
+          image: mstock/catalogo-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9002
+          env:
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:9888"
+            - name: EUREKA_DEFAULT_ZONE
+              value: "http://eureka-server:9761/eureka/"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "true"
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: JWT_SECRET } }
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql:3306/mstock_catalogo?useSSL=false&allowPublicKeyRetrieval=true"
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_USER } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_PASSWORD } }
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_USER } }
+            - name: RABBITMQ_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_PASSWORD } }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 9002 }
+            periodSeconds: 5
+            failureThreshold: 36        # hasta 3 minutos para arrancar
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 9002 }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 9002 }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: { memory: 384Mi, cpu: 100m }
+            limits: { memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventario-service
+  namespace: mstock
+spec:
+  selector:
+    app: inventario-service
+  ports:
+    - port: 9003
+      targetPort: 9003
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventario-service
+  namespace: mstock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventario-service
+  template:
+    metadata:
+      labels:
+        app: inventario-service
+    spec:
+      enableServiceLinks: false
+      # Sin esto el servicio podría arrancar antes que el Config Server y quedarse con la configuración local
+      initContainers:
+        - name: esperar-plataforma
+          image: busybox:1.37
+          command: ["sh", "-c", "until nc -z mysql 3306; do echo esperando mysql; sleep 3; done && until nc -z rabbitmq 5672; do echo esperando rabbitmq; sleep 3; done && until nc -z config-server 9888; do echo esperando config-server; sleep 3; done && until nc -z eureka-server 9761; do echo esperando eureka-server; sleep 3; done"]
+      containers:
+        - name: inventario-service
+          image: mstock/inventario-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9003
+          env:
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:9888"
+            - name: EUREKA_DEFAULT_ZONE
+              value: "http://eureka-server:9761/eureka/"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "true"
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: JWT_SECRET } }
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql:3306/mstock_inventario?useSSL=false&allowPublicKeyRetrieval=true"
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_USER } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_PASSWORD } }
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_USER } }
+            - name: RABBITMQ_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_PASSWORD } }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 9003 }
+            periodSeconds: 5
+            failureThreshold: 36        # hasta 3 minutos para arrancar
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 9003 }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 9003 }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: { memory: 384Mi, cpu: 100m }
+            limits: { memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ventas-service
+  namespace: mstock
+spec:
+  selector:
+    app: ventas-service
+  ports:
+    - port: 9004
+      targetPort: 9004
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ventas-service
+  namespace: mstock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ventas-service
+  template:
+    metadata:
+      labels:
+        app: ventas-service
+    spec:
+      enableServiceLinks: false
+      # Sin esto el servicio podría arrancar antes que el Config Server y quedarse con la configuración local
+      initContainers:
+        - name: esperar-plataforma
+          image: busybox:1.37
+          command: ["sh", "-c", "until nc -z mysql 3306; do echo esperando mysql; sleep 3; done && until nc -z rabbitmq 5672; do echo esperando rabbitmq; sleep 3; done && until nc -z config-server 9888; do echo esperando config-server; sleep 3; done && until nc -z eureka-server 9761; do echo esperando eureka-server; sleep 3; done"]
+      containers:
+        - name: ventas-service
+          image: mstock/ventas-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9004
+          env:
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:9888"
+            - name: EUREKA_DEFAULT_ZONE
+              value: "http://eureka-server:9761/eureka/"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "true"
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: JWT_SECRET } }
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql:3306/mstock_ventas?useSSL=false&allowPublicKeyRetrieval=true"
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_USER } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_PASSWORD } }
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_USER } }
+            - name: RABBITMQ_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_PASSWORD } }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 9004 }
+            periodSeconds: 5
+            failureThreshold: 36        # hasta 3 minutos para arrancar
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 9004 }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 9004 }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: { memory: 384Mi, cpu: 100m }
+            limits: { memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compras-service
+  namespace: mstock
+spec:
+  selector:
+    app: compras-service
+  ports:
+    - port: 9005
+      targetPort: 9005
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compras-service
+  namespace: mstock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: compras-service
+  template:
+    metadata:
+      labels:
+        app: compras-service
+    spec:
+      enableServiceLinks: false
+      # Sin esto el servicio podría arrancar antes que el Config Server y quedarse con la configuración local
+      initContainers:
+        - name: esperar-plataforma
+          image: busybox:1.37
+          command: ["sh", "-c", "until nc -z mysql 3306; do echo esperando mysql; sleep 3; done && until nc -z rabbitmq 5672; do echo esperando rabbitmq; sleep 3; done && until nc -z config-server 9888; do echo esperando config-server; sleep 3; done && until nc -z eureka-server 9761; do echo esperando eureka-server; sleep 3; done"]
+      containers:
+        - name: compras-service
+          image: mstock/compras-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9005
+          env:
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:9888"
+            - name: EUREKA_DEFAULT_ZONE
+              value: "http://eureka-server:9761/eureka/"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "true"
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: JWT_SECRET } }
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql:3306/mstock_compras?useSSL=false&allowPublicKeyRetrieval=true"
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_USER } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_PASSWORD } }
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_USER } }
+            - name: RABBITMQ_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_PASSWORD } }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 9005 }
+            periodSeconds: 5
+            failureThreshold: 36        # hasta 3 minutos para arrancar
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 9005 }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 9005 }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: { memory: 384Mi, cpu: 100m }
+            limits: { memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notificaciones-service
+  namespace: mstock
+spec:
+  selector:
+    app: notificaciones-service
+  ports:
+    - port: 9006
+      targetPort: 9006
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notificaciones-service
+  namespace: mstock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notificaciones-service
+  template:
+    metadata:
+      labels:
+        app: notificaciones-service
+    spec:
+      enableServiceLinks: false
+      # Sin esto el servicio podría arrancar antes que el Config Server y quedarse con la configuración local
+      initContainers:
+        - name: esperar-plataforma
+          image: busybox:1.37
+          command: ["sh", "-c", "until nc -z mysql 3306; do echo esperando mysql; sleep 3; done && until nc -z rabbitmq 5672; do echo esperando rabbitmq; sleep 3; done && until nc -z config-server 9888; do echo esperando config-server; sleep 3; done && until nc -z eureka-server 9761; do echo esperando eureka-server; sleep 3; done"]
+      containers:
+        - name: notificaciones-service
+          image: mstock/notificaciones-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9006
+          env:
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:9888"
+            - name: EUREKA_DEFAULT_ZONE
+              value: "http://eureka-server:9761/eureka/"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "true"
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: JWT_SECRET } }
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql:3306/mstock_notificaciones?useSSL=false&allowPublicKeyRetrieval=true"
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_USER } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: MYSQL_PASSWORD } }
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_USER
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_USER } }
+            - name: RABBITMQ_PASSWORD
+              valueFrom: { secretKeyRef: { name: mstock-secretos, key: RABBITMQ_PASSWORD } }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 9006 }
+            periodSeconds: 5
+            failureThreshold: 36        # hasta 3 minutos para arrancar
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 9006 }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 9006 }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: { memory: 384Mi, cpu: 100m }
+            limits: { memory: 768Mi }

@@ -1,0 +1,111 @@
+# Eureka (descubrimiento) y Config Server (configuración común).
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka-server
+  namespace: mstock
+spec:
+  selector:
+    app: eureka-server
+  ports:
+    - port: 9761
+      targetPort: 9761
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eureka-server
+  namespace: mstock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eureka-server
+  template:
+    metadata:
+      labels:
+        app: eureka-server
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: eureka-server
+          image: mstock/eureka-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9761
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 9761 }
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 9761 }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 9761 }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: { memory: 256Mi, cpu: 100m }
+            limits: { memory: 640Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-server
+  namespace: mstock
+spec:
+  selector:
+    app: config-server
+  ports:
+    - port: 9888
+      targetPort: 9888
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-server
+  namespace: mstock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-server
+  template:
+    metadata:
+      labels:
+        app: config-server
+    spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: esperar-plataforma
+          image: busybox:1.37
+          command: ["sh", "-c", "until nc -z eureka-server 9761; do echo esperando eureka-server; sleep 3; done"]
+      containers:
+        - name: config-server
+          image: mstock/config-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9888
+          env:
+            - name: EUREKA_DEFAULT_ZONE
+              value: "http://eureka-server:9761/eureka/"
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 9888 }
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 9888 }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 9888 }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: { memory: 256Mi, cpu: 100m }
+            limits: { memory: 640Mi }
