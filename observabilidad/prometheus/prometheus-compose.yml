@@ -1,0 +1,26 @@
+# Prometheus para Docker Compose: lee /actuator/prometheus de cada contenedor cada 15 s.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: mstock
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['eureka-server:9761']
+        labels: { application: eureka-server }
+      - targets: ['config-server:9888']
+        labels: { application: config-server }
+      - targets: ['auth-service:9001']
+        labels: { application: auth-service }
+      - targets: ['catalogo-service:9002']
+        labels: { application: catalogo-service }
+      - targets: ['inventario-service:9003']
+        labels: { application: inventario-service }
+      - targets: ['ventas-service:9004']
+        labels: { application: ventas-service }
+      - targets: ['compras-service:9005']
+        labels: { application: compras-service }
+      - targets: ['notificaciones-service:9006']
+        labels: { application: notificaciones-service }
+      - targets: ['api-gateway:8080']
+        labels: { application: api-gateway }

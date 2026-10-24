@@ -125,8 +125,17 @@ frecuentes: `docs/docker.md`.
 Manifiestos en `k8s/` (Deployments, StatefulSets, Secret generado desde `.env`, probes y `initContainers`). Despliegue con
 `.\k8s\desplegar.ps1` y acceso con `.\k8s\acceso.ps1`; explicación y comandos en `docs/kubernetes.md`.
 
+## Imagenes en GitHub Actions
+Cada `git push` a `main` construye las imagenes en GitHub y las publica en `ghcr.io`; en tu equipo solo se descargan
+(`.\scripts\descargar-imagenes.ps1`) en vez de compilar. Detalles en `docs/github-actions.md`.
+
+## Observabilidad
+Metricas con Micrometer, Prometheus y Grafana (dashboard "MSTOCK - Servicios" ya cargado). Compose:
+`docker compose --profile full --profile observabilidad up -d --build` y Grafana en `http://localhost:3000`; en Kubernetes
+`.\k8s\desplegar.ps1`. Detalles, paneles y pruebas: `docs/observabilidad.md`.
+
 ## Pendiente
 
-observabilidad (Fase 7; Docker, compose y Kubernetes ya están); la URL del gateway del frontend hoy está fija en `environment.ts`. Mejoras anotadas: outbox para no perder eventos (compras y ventas), usar la
+trazas distribuidas y logs centralizados (opcional; Docker, compose, Kubernetes y métricas ya están); la URL del gateway del frontend hoy está fija en `environment.ts`. Mejoras anotadas: outbox para no perder eventos (compras y ventas), usar la
 cuenta de servicio también en el descuento de stock (hoy va con el token del cajero) y una clave de idempotencia enviada
 por el cliente para que un doble clic en "Vender" no cree dos ventas.

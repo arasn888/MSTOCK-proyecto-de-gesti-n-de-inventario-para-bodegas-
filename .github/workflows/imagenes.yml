@@ -1,0 +1,67 @@
+# Construye las imagenes de Docker en los servidores de GitHub (no en tu computadora) y las publica en
+# GitHub Container Registry: ghcr.io/<usuario>/mstock-<servicio>:latest
+# Se ejecuta solo en cada push a main, o a mano desde la pestana Actions ("Run workflow").
+name: Imagenes
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'k8s/**'
+      - 'observabilidad/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false        # si un servicio falla, los demas siguen y asi ves todos los errores de una vez
+      matrix:
+        include:
+          - { servicio: eureka-server, puerto: 9761 }
+          - { servicio: config-server, puerto: 9888 }
+          - { servicio: auth-service, puerto: 9001 }
+          - { servicio: catalogo-service, puerto: 9002 }
+          - { servicio: inventario-service, puerto: 9003 }
+          - { servicio: ventas-service, puerto: 9004 }
+          - { servicio: compras-service, puerto: 9005 }
+          - { servicio: notificaciones-service, puerto: 9006 }
+          - { servicio: api-gateway, puerto: 8080 }
+          - { servicio: web, contexto: frontend/mstock-web }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Los nombres de imagen en GHCR deben ir en minusculas
+      - name: Usuario en minusculas
+        id: dueno
+        run: echo "nombre=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Construir y publicar
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.contexto || '.' }}
+          build-args: |
+            SERVICE=${{ matrix.servicio }}
+            PORT=${{ matrix.puerto }}
+          push: true
+          tags: |
+            ghcr.io/${{ steps.dueno.outputs.nombre }}/mstock-${{ matrix.servicio }}:latest
+            ghcr.io/${{ steps.dueno.outputs.nombre }}/mstock-${{ matrix.servicio }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.servicio }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.servicio }}

@@ -23,7 +23,8 @@ Get-Content '.env' | ForEach-Object {
     if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$') { $vars[$Matches[1]] = $Matches[2] }
 }
 if (-not $vars['ADMIN_PASSWORD']) { $vars['ADMIN_PASSWORD'] = 'Admin123*' }
-$claves = 'MYSQL_ROOT_PASSWORD', 'MYSQL_USER', 'MYSQL_PASSWORD', 'JWT_SECRET', 'ADMIN_PASSWORD', 'RABBITMQ_USER', 'RABBITMQ_PASSWORD'
+if (-not $vars['GRAFANA_PASSWORD']) { $vars['GRAFANA_PASSWORD'] = 'admin' }   # clave de Grafana (opcional en .env)
+$claves = 'MYSQL_ROOT_PASSWORD', 'MYSQL_USER', 'MYSQL_PASSWORD', 'JWT_SECRET', 'ADMIN_PASSWORD', 'RABBITMQ_USER', 'RABBITMQ_PASSWORD', 'GRAFANA_PASSWORD'
 $faltan = $claves | Where-Object { -not $vars[$_] }
 if ($faltan) { throw ('Faltan variables en .env: ' + ($faltan -join ', ')) }
 
@@ -47,6 +48,12 @@ kubectl apply -f k8s/00-namespace.yaml
 $literales = $claves | ForEach-Object { "--from-literal=$_=$($vars[$_])" }
 kubectl create secret generic mstock-secretos -n mstock @literales --dry-run=client -o yaml | kubectl apply -f -
 kubectl create configmap mysql-init -n mstock --from-file=init.sql=docker/mysql/init.sql --dry-run=client -o yaml | kubectl apply -f -
+kubectl create configmap prometheus-config -n mstock --from-file=prometheus.yml=observabilidad/prometheus/prometheus-k8s.yml --dry-run=client -o yaml | kubectl apply -f -
+kubectl create configmap grafana-config -n mstock `
+    --from-file=datasource.yml=observabilidad/grafana/provisioning/datasources/datasource.yml `
+    --from-file=dashboards.yml=observabilidad/grafana/provisioning/dashboards/dashboards.yml `
+    --from-file=mstock.json=observabilidad/grafana/dashboards/mstock.json `
+    --dry-run=client -o yaml | kubectl apply -f -
 
 # --- Resto de manifiestos ---
 kubectl apply -f k8s/

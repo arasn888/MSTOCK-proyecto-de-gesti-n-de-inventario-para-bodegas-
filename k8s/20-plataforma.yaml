@@ -33,6 +33,9 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9761
+          env:
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "health,info,prometheus"
           startupProbe:
             httpGet: { path: /actuator/health, port: 9761 }
             periodSeconds: 5
@@ -92,6 +95,8 @@ spec:
           env:
             - name: EUREKA_DEFAULT_ZONE
               value: "http://eureka-server:9761/eureka/"
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "health,info,prometheus"
           startupProbe:
             httpGet: { path: /actuator/health, port: 9888 }
             periodSeconds: 5

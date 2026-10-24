@@ -1,0 +1,28 @@
+# Prometheus para Kubernetes: descubre solos los pods del namespace "mstock" y lee /actuator/prometheus.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: mstock
+    metrics_path: /actuator/prometheus
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names: [mstock]
+    relabel_configs:
+      # solo los pods de los servicios Java (no mysql, rabbitmq, web ni los propios Prometheus/Grafana)
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: (eureka-server|config-server|auth-service|catalogo-service|inventario-service|ventas-service|compras-service|notificaciones-service|api-gateway)
+        action: keep
+      # ignora los contenedores sin puerto declarado (el initContainer que espera a la plataforma)
+      - source_labels: [__meta_kubernetes_pod_container_port_number]
+        regex: .+
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        target_label: application
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+      # direccion a consultar = IP del pod : puerto del contenedor
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_container_port_number]
+        separator: ":"
+        target_label: __address__

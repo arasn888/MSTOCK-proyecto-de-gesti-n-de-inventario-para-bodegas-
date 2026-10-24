@@ -45,6 +45,8 @@ spec:
               value: "http://eureka-server:9761/eureka/"
             - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
               value: "true"
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "health,info,prometheus"
             - name: JWT_SECRET
               valueFrom: { secretKeyRef: { name: mstock-secretos, key: JWT_SECRET } }
             - name: CORS_ALLOWED_ORIGINS
