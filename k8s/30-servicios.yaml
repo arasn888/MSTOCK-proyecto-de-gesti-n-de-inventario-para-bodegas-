@@ -40,6 +40,8 @@ spec:
           ports:
             - containerPort: 9001
           env:
+            - name: TZ
+              value: "America/Lima"
             - name: SPRING_CONFIG_IMPORT
               value: "optional:configserver:http://config-server:9888"
             - name: EUREKA_DEFAULT_ZONE
@@ -124,6 +126,8 @@ spec:
           ports:
             - containerPort: 9002
           env:
+            - name: TZ
+              value: "America/Lima"
             - name: SPRING_CONFIG_IMPORT
               value: "optional:configserver:http://config-server:9888"
             - name: EUREKA_DEFAULT_ZONE
@@ -206,6 +210,8 @@ spec:
           ports:
             - containerPort: 9003
           env:
+            - name: TZ
+              value: "America/Lima"
             - name: SPRING_CONFIG_IMPORT
               value: "optional:configserver:http://config-server:9888"
             - name: EUREKA_DEFAULT_ZONE
@@ -288,6 +294,8 @@ spec:
           ports:
             - containerPort: 9004
           env:
+            - name: TZ
+              value: "America/Lima"
             - name: SPRING_CONFIG_IMPORT
               value: "optional:configserver:http://config-server:9888"
             - name: EUREKA_DEFAULT_ZONE
@@ -370,6 +378,8 @@ spec:
           ports:
             - containerPort: 9005
           env:
+            - name: TZ
+              value: "America/Lima"
             - name: SPRING_CONFIG_IMPORT
               value: "optional:configserver:http://config-server:9888"
             - name: EUREKA_DEFAULT_ZONE
@@ -452,6 +462,8 @@ spec:
           ports:
             - containerPort: 9006
           env:
+            - name: TZ
+              value: "America/Lima"
             - name: SPRING_CONFIG_IMPORT
               value: "optional:configserver:http://config-server:9888"
             - name: EUREKA_DEFAULT_ZONE

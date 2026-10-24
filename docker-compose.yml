@@ -8,6 +8,7 @@ x-servicio: &servicio
   restart: unless-stopped
   profiles: ["full"]
   environment: &entorno
+    TZ: America/Lima
     SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:9888
     EUREKA_DEFAULT_ZONE: http://eureka-server:9761/eureka/
     EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
@@ -188,6 +189,7 @@ services:
     profiles: ["full"]
     restart: unless-stopped
     environment:
+      TZ: America/Lima
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:9888
       EUREKA_DEFAULT_ZONE: http://eureka-server:9761/eureka/
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"

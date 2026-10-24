@@ -34,6 +34,8 @@ spec:
           ports:
             - containerPort: 9761
           env:
+            - name: TZ
+              value: "America/Lima"
             - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
               value: "health,info,prometheus"
           startupProbe:
@@ -93,6 +95,8 @@ spec:
           ports:
             - containerPort: 9888
           env:
+            - name: TZ
+              value: "America/Lima"
             - name: EUREKA_DEFAULT_ZONE
               value: "http://eureka-server:9761/eureka/"
             - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE

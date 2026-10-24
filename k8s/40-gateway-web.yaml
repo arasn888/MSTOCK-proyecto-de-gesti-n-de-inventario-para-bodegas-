@@ -39,6 +39,8 @@ spec:
           ports:
             - containerPort: 8080
           env:
+            - name: TZ
+              value: "America/Lima"
             - name: SPRING_CONFIG_IMPORT
               value: "optional:configserver:http://config-server:9888"
             - name: EUREKA_DEFAULT_ZONE
