@@ -49,6 +49,7 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
             where p.activo = true
               and (lower(p.nombre) like lower(concat('%', :texto, '%'))
                    or lower(p.codigo) like lower(concat('%', :texto, '%')))
+            order by p.nombre
             """)
     List<Producto> buscarActivosPorTexto(@Param("texto") String texto);
 
@@ -59,6 +60,7 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
               and p.categoria.id = :categoriaId
               and (lower(p.nombre) like lower(concat('%', :texto, '%'))
                    or lower(p.codigo) like lower(concat('%', :texto, '%')))
+            order by p.nombre
             """)
     List<Producto> buscarActivosPorTextoYCategoria(@Param("texto") String texto,
                                                    @Param("categoriaId") Long categoriaId);

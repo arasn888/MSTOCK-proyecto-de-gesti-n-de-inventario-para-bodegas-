@@ -1,0 +1,55 @@
+# Ejecuta las pruebas automaticas de todos los servicios (JUnit + H2 en memoria, no necesita MySQL ni RabbitMQ).
+# Se lanza en cada push y en cada pull request, o a mano desde la pestana Actions ("Run workflow").
+name: Pruebas
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'k8s/**'
+      - 'observabilidad/**'
+      - 'frontend/**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Ejecutar pruebas
+        run: |
+          chmod +x gradlew
+          ./gradlew test --continue --no-daemon
+
+      # Resumen legible (pasadas / fallidas por clase) en la pagina de la ejecucion
+      - name: Resumen de resultados
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: '**/build/test-results/test/*.xml'
+          check_name: Resultados de pruebas
+
+      # Informe HTML completo por servicio, descargable
+      - name: Guardar informes HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informes-de-pruebas
+          path: '**/build/reports/tests/test/'
+          if-no-files-found: warn
